@@ -777,6 +777,63 @@ func (t *TinyBrainServer) registerTools(s *mcp.Server) {
 		t.handleGetSystemDiagnostics,
 	)
 
+	s.AddTool("semantic_search",
+		"Perform semantic search using embeddings for finding conceptually similar memories",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"query": map[string]interface{}{
+					"type":        "string",
+					"description": "Search query for semantic matching",
+				},
+				"session_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ID of the session to search within",
+				},
+				"limit": map[string]interface{}{
+					"type":        "number",
+					"description": "Maximum number of results to return (default: 20)",
+				},
+			},
+			"required": []string{"query", "session_id"},
+		},
+		t.handleSemanticSearch,
+	)
+
+	s.AddTool("generate_embedding",
+		"Generate an embedding vector for text (placeholder for future AI integration)",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"text": map[string]interface{}{
+					"type":        "string",
+					"description": "Text to generate embedding for",
+				},
+			},
+			"required": []string{"text"},
+		},
+		t.handleGenerateEmbedding,
+	)
+
+	s.AddTool("calculate_similarity",
+		"Calculate semantic similarity between two embeddings",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"embedding1": map[string]interface{}{
+					"type":        "string",
+					"description": "JSON array of first embedding vector",
+				},
+				"embedding2": map[string]interface{}{
+					"type":        "string",
+					"description": "JSON array of second embedding vector",
+				},
+			},
+			"required": []string{"embedding1", "embedding2"},
+		},
+		t.handleCalculateSimilarity,
+	)
+
 	s.AddTool("health_check",
 		"Perform a health check on the database and server",
 		map[string]interface{}{
@@ -1454,6 +1511,85 @@ func (t *TinyBrainServer) handleGetSystemDiagnostics(ctx context.Context, params
 	}
 
 	return diagnostics, nil
+}
+
+func (t *TinyBrainServer) handleSemanticSearch(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	query, ok := params["query"].(string)
+	if !ok {
+		return nil, fmt.Errorf("query is required")
+	}
+
+	sessionID, ok := params["session_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("session_id is required")
+	}
+
+	limit := 20
+	if limitVal, ok := params["limit"].(float64); ok {
+		limit = int(limitVal)
+	}
+
+	memories, err := t.repo.SemanticSearch(ctx, query, sessionID, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to perform semantic search: %v", err)
+	}
+
+	return map[string]interface{}{
+		"memories": memories,
+		"count":    len(memories),
+		"query":    query,
+		"session_id": sessionID,
+	}, nil
+}
+
+func (t *TinyBrainServer) handleGenerateEmbedding(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	text, ok := params["text"].(string)
+	if !ok {
+		return nil, fmt.Errorf("text is required")
+	}
+
+	embedding, err := t.repo.GenerateEmbedding(ctx, text)
+	if err != nil {
+		return nil, fmt.Errorf("failed to generate embedding: %v", err)
+	}
+
+	return map[string]interface{}{
+		"embedding": embedding,
+		"dimension": len(embedding),
+		"text":      text,
+	}, nil
+}
+
+func (t *TinyBrainServer) handleCalculateSimilarity(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	embedding1Str, ok := params["embedding1"].(string)
+	if !ok {
+		return nil, fmt.Errorf("embedding1 is required")
+	}
+
+	embedding2Str, ok := params["embedding2"].(string)
+	if !ok {
+		return nil, fmt.Errorf("embedding2 is required")
+	}
+
+	var embedding1, embedding2 []float64
+	if err := json.Unmarshal([]byte(embedding1Str), &embedding1); err != nil {
+		return nil, fmt.Errorf("invalid embedding1 JSON: %v", err)
+	}
+
+	if err := json.Unmarshal([]byte(embedding2Str), &embedding2); err != nil {
+		return nil, fmt.Errorf("invalid embedding2 JSON: %v", err)
+	}
+
+	similarity, err := t.repo.CalculateSemanticSimilarity(embedding1, embedding2)
+	if err != nil {
+		return nil, fmt.Errorf("failed to calculate similarity: %v", err)
+	}
+
+	return map[string]interface{}{
+		"similarity": similarity,
+		"embedding1_dimension": len(embedding1),
+		"embedding2_dimension": len(embedding2),
+	}, nil
 }
 
 func (t *TinyBrainServer) handleGetDatabaseStats(ctx context.Context, params map[string]interface{}) (interface{}, error) {

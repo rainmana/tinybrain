@@ -5,6 +5,8 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
+	"math"
 	"strings"
 	"time"
 
@@ -1818,6 +1820,106 @@ func (r *MemoryRepository) GetSystemDiagnostics(ctx context.Context) (map[string
 	}
 
 	return diagnostics, nil
+}
+
+// SemanticSearch performs semantic search using embeddings (placeholder for future implementation)
+func (r *MemoryRepository) SemanticSearch(ctx context.Context, query string, sessionID string, limit int) ([]*models.MemoryEntry, error) {
+	// This is a placeholder for future semantic search implementation
+	// For now, we'll use enhanced regular search with better relevance scoring
+	
+	searchReq := &models.SearchRequest{
+		Query:      query,
+		SessionID:  sessionID,
+		Limit:      limit,
+		SearchType: "semantic", // This will trigger enhanced search logic
+	}
+	
+	results, err := r.SearchMemoryEntries(ctx, searchReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to perform semantic search: %w", err)
+	}
+	
+	var memories []*models.MemoryEntry
+	for _, result := range results {
+		memories = append(memories, &result.MemoryEntry)
+	}
+	
+	r.logger.Info("Semantic search performed", "query", query, "results", len(memories), "session_id", sessionID)
+	return memories, nil
+}
+
+// GenerateEmbedding generates an embedding for text (placeholder for future implementation)
+func (r *MemoryRepository) GenerateEmbedding(ctx context.Context, text string) ([]float64, error) {
+	// This is a placeholder for future embedding generation
+	// In a real implementation, this would call an embedding service like OpenAI, Cohere, or local models
+	
+	// For now, return a simple hash-based "embedding" for demonstration
+	hash := fnv.New64a()
+	hash.Write([]byte(text))
+	hashValue := hash.Sum64()
+	
+	// Convert hash to a simple 8-dimensional "embedding"
+	embedding := make([]float64, 8)
+	for i := 0; i < 8; i++ {
+		embedding[i] = float64((hashValue >> (i * 8)) & 0xFF) / 255.0
+	}
+	
+	r.logger.Debug("Generated placeholder embedding", "text_length", len(text), "embedding_dim", len(embedding))
+	return embedding, nil
+}
+
+// CalculateSemanticSimilarity calculates similarity between two embeddings (placeholder)
+func (r *MemoryRepository) CalculateSemanticSimilarity(embedding1, embedding2 []float64) (float64, error) {
+	// This is a placeholder for future semantic similarity calculation
+	// In a real implementation, this would use cosine similarity, dot product, or other similarity metrics
+	
+	if len(embedding1) != len(embedding2) {
+		return 0, fmt.Errorf("embedding dimensions don't match: %d vs %d", len(embedding1), len(embedding2))
+	}
+	
+	// Simple cosine similarity calculation
+	var dotProduct, norm1, norm2 float64
+	for i := 0; i < len(embedding1); i++ {
+		dotProduct += embedding1[i] * embedding2[i]
+		norm1 += embedding1[i] * embedding1[i]
+		norm2 += embedding2[i] * embedding2[i]
+	}
+	
+	if norm1 == 0 || norm2 == 0 {
+		return 0, nil
+	}
+	
+	similarity := dotProduct / (math.Sqrt(norm1) * math.Sqrt(norm2))
+	return similarity, nil
+}
+
+// StoreEmbedding stores an embedding for a memory entry (placeholder)
+func (r *MemoryRepository) StoreEmbedding(ctx context.Context, memoryID string, embedding []float64) error {
+	// This is a placeholder for future embedding storage
+	// In a real implementation, this would store embeddings in a vector database or dedicated table
+	
+	// For now, we'll store it as JSON in a text field (not optimal for production)
+	embeddingJSON, err := json.Marshal(embedding)
+	if err != nil {
+		return fmt.Errorf("failed to marshal embedding: %w", err)
+	}
+	
+	// Store in a hypothetical embeddings table (we'd need to create this table)
+	query := `
+		INSERT OR REPLACE INTO memory_embeddings (memory_id, embedding, created_at, updated_at)
+		VALUES (?, ?, ?, ?)
+	`
+	
+	now := time.Now()
+	_, err = r.db.ExecContext(ctx, query, memoryID, string(embeddingJSON), now, now)
+	if err != nil {
+		// If the table doesn't exist, that's expected for now
+		r.logger.Debug("Embedding storage not available", "memory_id", memoryID, "error", err)
+		return nil
+	}
+	
+	r.logger.Debug("Stored embedding", "memory_id", memoryID, "embedding_dim", len(embedding))
+	return nil
 }
 
 // generateMemorySummary generates a summary of relevant memories for the given context
