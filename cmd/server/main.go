@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/alec/tinybrain/internal/database"
-	"github.com/alec/tinybrain/internal/mcp"
-	"github.com/alec/tinybrain/internal/models"
-	"github.com/alec/tinybrain/internal/repository"
+	"github.com/rainmana/tinybrain/internal/database"
+	"github.com/rainmana/tinybrain/internal/mcp"
+	"github.com/rainmana/tinybrain/internal/models"
+	"github.com/rainmana/tinybrain/internal/repository"
 	"github.com/charmbracelet/log"
 )
 

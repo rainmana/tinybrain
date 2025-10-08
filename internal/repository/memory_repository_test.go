@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/alec/tinybrain/internal/database"
-	"github.com/alec/tinybrain/internal/models"
+	"github.com/rainmana/tinybrain/internal/database"
+	"github.com/rainmana/tinybrain/internal/models"
 	"github.com/charmbracelet/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

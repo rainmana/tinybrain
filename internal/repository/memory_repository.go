@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/alec/tinybrain/internal/models"
+	"github.com/rainmana/tinybrain/internal/models"
 	"github.com/charmbracelet/log"
 	"github.com/google/uuid"
 )
