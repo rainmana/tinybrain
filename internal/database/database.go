@@ -222,6 +222,15 @@ JOIN memory_entries t1 ON r.target_entry_id = t1.id;
 
 // createFTS5Table creates the FTS5 virtual table if available
 func (d *Database) createFTS5Table() {
+	// Check if FTS5 is available before trying to create virtual table
+	var fts5Available bool
+	err := d.db.QueryRow("SELECT 1 FROM pragma_compile_options WHERE compile_options LIKE '%FTS5%'").Scan(&fts5Available)
+	if err != nil {
+		// FTS5 not available, skip virtual table creation
+		d.logger.Info("FTS5 not compiled in SQLite, using regular search")
+		return
+	}
+
 	// Try to create FTS5 table
 	fts5Schema := `
 CREATE VIRTUAL TABLE IF NOT EXISTS memory_entries_fts USING fts5(
@@ -252,9 +261,9 @@ END;
 `
 
 	if _, err := d.db.Exec(fts5Schema); err != nil {
-		d.logger.Warn("FTS5 not available, using regular search", "error", err)
+		d.logger.Info("FTS5 virtual table creation failed, using regular search", "error", err)
 	} else {
-		d.logger.Debug("FTS5 table created successfully")
+		d.logger.Info("FTS5 full-text search initialized")
 	}
 }
 
