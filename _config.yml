@@ -1,0 +1,57 @@
+# TinyBrain GitHub Pages Configuration
+# Jekyll configuration for documentation site
+
+title: TinyBrain
+description: Security-Focused LLM Memory Storage MCP Server
+baseurl: ""
+url: "https://rainmana.github.io/tinybrain"
+
+# Theme
+remote_theme: just-the-docs/just-the-docs
+
+# Theme settings
+color_scheme: dark
+search_enabled: true
+heading_anchors: true
+
+# Navigation structure
+nav_order: 1
+
+# Footer
+footer_content: 'TinyBrain - Security-Focused LLM Memory Storage MCP Server'
+
+# GitHub
+gh_edit_link: true
+gh_edit_link_text: "Edit this page on GitHub"
+gh_edit_repository: "https://github.com/rainmana/tinybrain"
+gh_edit_branch: "main"
+gh_edit_view_mode: "tree"
+
+# Aux links
+aux_links:
+  "TinyBrain on GitHub":
+    - "//github.com/rainmana/tinybrain"
+
+# Plugins
+plugins:
+  - jekyll-remote-theme
+  - jekyll-seo-tag
+
+# Markdown
+markdown: kramdown
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+
+# Collections
+collections:
+  docs:
+    permalink: "/:collection/:path/"
+    output: true
+
+# Defaults
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: default
