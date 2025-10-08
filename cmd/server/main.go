@@ -634,6 +634,55 @@ func (t *TinyBrainServer) registerTools(s *mcp.Server) {
 		t.handleCreateMemoryFromTemplate,
 	)
 
+	s.AddTool("batch_create_memories",
+		"Create multiple memory entries in a single transaction for bulk operations",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"session_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ID of the session",
+				},
+				"memory_requests": map[string]interface{}{
+					"type":        "string",
+					"description": "JSON array of memory creation requests",
+				},
+			},
+			"required": []string{"session_id", "memory_requests"},
+		},
+		t.handleBatchCreateMemories,
+	)
+
+	s.AddTool("batch_update_memories",
+		"Update multiple memory entries in a single transaction for bulk operations",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"memory_updates": map[string]interface{}{
+					"type":        "string",
+					"description": "JSON array of memory update requests",
+				},
+			},
+			"required": []string{"memory_updates"},
+		},
+		t.handleBatchUpdateMemories,
+	)
+
+	s.AddTool("batch_delete_memories",
+		"Delete multiple memory entries in a single transaction for bulk operations",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"memory_ids": map[string]interface{}{
+					"type":        "string",
+					"description": "JSON array of memory IDs to delete",
+				},
+			},
+			"required": []string{"memory_ids"},
+		},
+		t.handleBatchDeleteMemories,
+	)
+
 	s.AddTool("health_check",
 		"Perform a health check on the database and server",
 		map[string]interface{}{
@@ -1130,6 +1179,77 @@ func (t *TinyBrainServer) handleCreateMemoryFromTemplate(ctx context.Context, pa
 	}
 
 	return memory, nil
+}
+
+func (t *TinyBrainServer) handleBatchCreateMemories(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	sessionID, ok := params["session_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("session_id is required")
+	}
+
+	memoryRequestsStr, ok := params["memory_requests"].(string)
+	if !ok {
+		return nil, fmt.Errorf("memory_requests is required")
+	}
+
+	var memoryRequests []*models.CreateMemoryEntryRequest
+	if err := json.Unmarshal([]byte(memoryRequestsStr), &memoryRequests); err != nil {
+		return nil, fmt.Errorf("invalid memory_requests JSON: %v", err)
+	}
+
+	memories, err := t.repo.BatchCreateMemoryEntries(ctx, sessionID, memoryRequests)
+	if err != nil {
+		return nil, fmt.Errorf("failed to batch create memories: %v", err)
+	}
+
+	return map[string]interface{}{
+		"created_memories": memories,
+		"count":            len(memories),
+	}, nil
+}
+
+func (t *TinyBrainServer) handleBatchUpdateMemories(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	memoryUpdatesStr, ok := params["memory_updates"].(string)
+	if !ok {
+		return nil, fmt.Errorf("memory_updates is required")
+	}
+
+	var memoryUpdates []*models.UpdateMemoryEntryRequest
+	if err := json.Unmarshal([]byte(memoryUpdatesStr), &memoryUpdates); err != nil {
+		return nil, fmt.Errorf("invalid memory_updates JSON: %v", err)
+	}
+
+	memories, err := t.repo.BatchUpdateMemoryEntries(ctx, memoryUpdates)
+	if err != nil {
+		return nil, fmt.Errorf("failed to batch update memories: %v", err)
+	}
+
+	return map[string]interface{}{
+		"updated_memories": memories,
+		"count":            len(memories),
+	}, nil
+}
+
+func (t *TinyBrainServer) handleBatchDeleteMemories(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	memoryIDsStr, ok := params["memory_ids"].(string)
+	if !ok {
+		return nil, fmt.Errorf("memory_ids is required")
+	}
+
+	var memoryIDs []string
+	if err := json.Unmarshal([]byte(memoryIDsStr), &memoryIDs); err != nil {
+		return nil, fmt.Errorf("invalid memory_ids JSON: %v", err)
+	}
+
+	err := t.repo.BatchDeleteMemoryEntries(ctx, memoryIDs)
+	if err != nil {
+		return nil, fmt.Errorf("failed to batch delete memories: %v", err)
+	}
+
+	return map[string]interface{}{
+		"deleted_count": len(memoryIDs),
+		"message":       "Memory entries deleted successfully",
+	}, nil
 }
 
 func (t *TinyBrainServer) handleGetDatabaseStats(ctx context.Context, params map[string]interface{}) (interface{}, error) {

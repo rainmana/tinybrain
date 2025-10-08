@@ -1121,6 +1121,192 @@ func (r *MemoryRepository) CreateMemoryFromTemplate(ctx context.Context, session
 	return r.CreateMemoryEntry(ctx, req)
 }
 
+// BatchCreateMemoryEntries creates multiple memory entries in a single transaction
+func (r *MemoryRepository) BatchCreateMemoryEntries(ctx context.Context, sessionID string, requests []*models.CreateMemoryEntryRequest) ([]*models.MemoryEntry, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var createdMemories []*models.MemoryEntry
+
+	for _, req := range requests {
+		req.SessionID = sessionID // Ensure session ID is set
+		
+		// Set default content type if not specified
+		if req.ContentType == "" {
+			req.ContentType = "text"
+		}
+		
+		// Generate ID
+		id := uuid.New().String()
+		
+		// Serialize tags
+		tagsJSON, err := json.Marshal(req.Tags)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal tags: %w", err)
+		}
+
+		// Insert memory entry
+		query := `
+			INSERT INTO memory_entries (id, session_id, title, content, content_type, category, priority, confidence, tags, source, created_at, updated_at, accessed_at, access_count)
+			VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+		`
+		
+		now := time.Now()
+		_, err = tx.ExecContext(ctx, query,
+			id, req.SessionID, req.Title, req.Content, req.ContentType,
+			req.Category, req.Priority, req.Confidence, string(tagsJSON),
+			req.Source, now, now, now, 0,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to insert memory entry: %w", err)
+		}
+
+		memory := &models.MemoryEntry{
+			ID:          id,
+			SessionID:   req.SessionID,
+			Title:       req.Title,
+			Content:     req.Content,
+			ContentType: req.ContentType,
+			Category:    req.Category,
+			Priority:    req.Priority,
+			Confidence:  req.Confidence,
+			Tags:        req.Tags,
+			Source:      req.Source,
+			CreatedAt:   now,
+			UpdatedAt:   now,
+			AccessedAt:  now,
+			AccessCount: 0,
+		}
+		
+		createdMemories = append(createdMemories, memory)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	r.logger.Info("Batch created memory entries", "count", len(createdMemories), "session_id", sessionID)
+	return createdMemories, nil
+}
+
+// BatchUpdateMemoryEntries updates multiple memory entries in a single transaction
+func (r *MemoryRepository) BatchUpdateMemoryEntries(ctx context.Context, updates []*models.UpdateMemoryEntryRequest) ([]*models.MemoryEntry, error) {
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	var updatedMemories []*models.MemoryEntry
+
+	for _, update := range updates {
+		// Build dynamic update query
+		setParts := []string{}
+		args := []interface{}{}
+		
+		if update.Title != "" {
+			setParts = append(setParts, "title = ?")
+			args = append(args, update.Title)
+		}
+		if update.Content != "" {
+			setParts = append(setParts, "content = ?")
+			args = append(args, update.Content)
+		}
+		if update.Category != "" {
+			setParts = append(setParts, "category = ?")
+			args = append(args, update.Category)
+		}
+		if update.Priority != nil {
+			setParts = append(setParts, "priority = ?")
+			args = append(args, *update.Priority)
+		}
+		if update.Confidence != nil {
+			setParts = append(setParts, "confidence = ?")
+			args = append(args, *update.Confidence)
+		}
+		if update.Tags != nil {
+			tagsJSON, err := json.Marshal(update.Tags)
+			if err != nil {
+				return nil, fmt.Errorf("failed to marshal tags: %w", err)
+			}
+			setParts = append(setParts, "tags = ?")
+			args = append(args, string(tagsJSON))
+		}
+		if update.Source != "" {
+			setParts = append(setParts, "source = ?")
+			args = append(args, update.Source)
+		}
+		
+		if len(setParts) == 0 {
+			continue // No updates to make
+		}
+		
+		setParts = append(setParts, "updated_at = ?")
+		args = append(args, time.Now())
+		args = append(args, update.ID)
+
+		query := fmt.Sprintf("UPDATE memory_entries SET %s WHERE id = ?", strings.Join(setParts, ", "))
+		
+		_, err = tx.ExecContext(ctx, query, args...)
+		if err != nil {
+			return nil, fmt.Errorf("failed to update memory entry: %w", err)
+		}
+
+		// Get the updated memory entry
+		memory, err := r.GetMemoryEntry(ctx, update.ID)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get updated memory entry: %w", err)
+		}
+		
+		updatedMemories = append(updatedMemories, memory)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	r.logger.Info("Batch updated memory entries", "count", len(updatedMemories))
+	return updatedMemories, nil
+}
+
+// BatchDeleteMemoryEntries deletes multiple memory entries in a single transaction
+func (r *MemoryRepository) BatchDeleteMemoryEntries(ctx context.Context, memoryIDs []string) error {
+	if len(memoryIDs) == 0 {
+		return nil
+	}
+
+	tx, err := r.db.BeginTx(ctx, nil)
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+	defer tx.Rollback()
+
+	// Create placeholders for the IN clause
+	placeholders := strings.Repeat("?,", len(memoryIDs)-1) + "?"
+	query := fmt.Sprintf("DELETE FROM memory_entries WHERE id IN (%s)", placeholders)
+	
+	// Convert []string to []interface{}
+	args := make([]interface{}, len(memoryIDs))
+	for i, id := range memoryIDs {
+		args[i] = id
+	}
+
+	_, err = tx.ExecContext(ctx, query, args...)
+	if err != nil {
+		return fmt.Errorf("failed to delete memory entries: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	r.logger.Info("Batch deleted memory entries", "count", len(memoryIDs))
+	return nil
+}
+
 // generateMemorySummary generates a summary of relevant memories for the given context
 func (r *MemoryRepository) generateMemorySummary(ctx context.Context, sessionID string, contextData map[string]interface{}) (string, error) {
 	// Get recent high-priority memories
