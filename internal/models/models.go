@@ -264,3 +264,74 @@ func (c *ContextSnapshot) UnmarshalJSON(data []byte) error {
 	}
 	return nil
 }
+
+// CVEMapping represents a mapping between CWE and CVE entries
+type CVEMapping struct {
+	ID           string    `json:"id" db:"id"`
+	SessionID    string    `json:"session_id" db:"session_id"`
+	CWEID        string    `json:"cwe_id" db:"cwe_id"`
+	CVEList      []string  `json:"cve_list" db:"cve_list"`
+	LastUpdated  time.Time `json:"last_updated" db:"last_updated"`
+	Confidence   float64   `json:"confidence" db:"confidence"`
+	Source       string    `json:"source" db:"source"`
+	CreatedAt    time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
+}
+
+// RiskCorrelation represents correlation analysis between vulnerabilities
+type RiskCorrelation struct {
+	ID                string    `json:"id" db:"id"`
+	SessionID         string    `json:"session_id" db:"session_id"`
+	PrimaryVulnID     string    `json:"primary_vuln_id" db:"primary_vuln_id"`
+	SecondaryVulnIDs  []string  `json:"secondary_vuln_ids" db:"secondary_vuln_ids"`
+	RiskMultiplier    float64   `json:"risk_multiplier" db:"risk_multiplier"`
+	AttackChain       []string  `json:"attack_chain" db:"attack_chain"`
+	BusinessImpact    string    `json:"business_impact" db:"business_impact"`
+	Confidence        float64   `json:"confidence" db:"confidence"`
+	CreatedAt         time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at" db:"updated_at"`
+}
+
+// ComplianceMapping represents mapping to security compliance standards
+type ComplianceMapping struct {
+	ID                string    `json:"id" db:"id"`
+	SessionID         string    `json:"session_id" db:"session_id"`
+	Standard          string    `json:"standard" db:"standard"`
+	Requirement       string    `json:"requirement" db:"requirement"`
+	VulnerabilityIDs  []string  `json:"vulnerability_ids" db:"vulnerability_ids"`
+	ComplianceScore   float64   `json:"compliance_score" db:"compliance_score"`
+	GapAnalysis       []string  `json:"gap_analysis" db:"gap_analysis"`
+	Recommendations   []string  `json:"recommendations" db:"recommendations"`
+	CreatedAt         time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt         time.Time `json:"updated_at" db:"updated_at"`
+}
+
+// Request/Response types for new features
+type MapToCVERequest struct {
+	SessionID string `json:"session_id"`
+	CWEID     string `json:"cwe_id"`
+}
+
+type MapToCVEResponse struct {
+	CVEMapping *CVEMapping `json:"cve_mapping"`
+	Error      string      `json:"error,omitempty"`
+}
+
+type AnalyzeRiskCorrelationRequest struct {
+	SessionID string `json:"session_id"`
+}
+
+type AnalyzeRiskCorrelationResponse struct {
+	Correlations []*RiskCorrelation `json:"correlations"`
+	Error        string             `json:"error,omitempty"`
+}
+
+type MapToComplianceRequest struct {
+	SessionID string `json:"session_id"`
+	Standard  string `json:"standard"`
+}
+
+type MapToComplianceResponse struct {
+	ComplianceMapping *ComplianceMapping `json:"compliance_mapping"`
+	Error             string             `json:"error,omitempty"`
+}

@@ -181,6 +181,51 @@ CREATE TABLE IF NOT EXISTS notifications (
     FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
 );
 
+-- CVE mappings table - maps CWE to CVE entries
+CREATE TABLE IF NOT EXISTS cve_mappings (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    cwe_id TEXT NOT NULL,
+    cve_list TEXT NOT NULL, -- JSON array of CVE IDs
+    last_updated DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    confidence REAL NOT NULL DEFAULT 0.0,
+    source TEXT NOT NULL DEFAULT 'nvd',
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+);
+
+-- Risk correlations table - stores vulnerability correlation analysis
+CREATE TABLE IF NOT EXISTS risk_correlations (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    primary_vuln_id TEXT NOT NULL,
+    secondary_vuln_ids TEXT NOT NULL, -- JSON array of vulnerability IDs
+    risk_multiplier REAL NOT NULL DEFAULT 1.0,
+    attack_chain TEXT NOT NULL, -- JSON array of attack steps
+    business_impact TEXT NOT NULL,
+    confidence REAL NOT NULL DEFAULT 0.0,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE,
+    FOREIGN KEY (primary_vuln_id) REFERENCES memory_entries(id) ON DELETE CASCADE
+);
+
+-- Compliance mappings table - maps vulnerabilities to compliance standards
+CREATE TABLE IF NOT EXISTS compliance_mappings (
+    id TEXT PRIMARY KEY,
+    session_id TEXT NOT NULL,
+    standard TEXT NOT NULL,
+    requirement TEXT NOT NULL,
+    vulnerability_ids TEXT NOT NULL, -- JSON array of vulnerability IDs
+    compliance_score REAL NOT NULL DEFAULT 0.0,
+    gap_analysis TEXT NOT NULL, -- JSON array of gaps
+    recommendations TEXT NOT NULL, -- JSON array of recommendations
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+);
+
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_memory_entries_session_id ON memory_entries(session_id);
 CREATE INDEX IF NOT EXISTS idx_memory_entries_category ON memory_entries(category);
@@ -202,6 +247,19 @@ CREATE INDEX IF NOT EXISTS idx_notifications_session_id ON notifications(session
 CREATE INDEX IF NOT EXISTS idx_notifications_type ON notifications(type);
 CREATE INDEX IF NOT EXISTS idx_notifications_priority ON notifications(priority);
 CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at);
+
+-- Indexes for new tables
+CREATE INDEX IF NOT EXISTS idx_cve_mappings_session_id ON cve_mappings(session_id);
+CREATE INDEX IF NOT EXISTS idx_cve_mappings_cwe_id ON cve_mappings(cwe_id);
+CREATE INDEX IF NOT EXISTS idx_cve_mappings_confidence ON cve_mappings(confidence);
+
+CREATE INDEX IF NOT EXISTS idx_risk_correlations_session_id ON risk_correlations(session_id);
+CREATE INDEX IF NOT EXISTS idx_risk_correlations_primary_vuln_id ON risk_correlations(primary_vuln_id);
+CREATE INDEX IF NOT EXISTS idx_risk_correlations_confidence ON risk_correlations(confidence);
+
+CREATE INDEX IF NOT EXISTS idx_compliance_mappings_session_id ON compliance_mappings(session_id);
+CREATE INDEX IF NOT EXISTS idx_compliance_mappings_standard ON compliance_mappings(standard);
+CREATE INDEX IF NOT EXISTS idx_compliance_mappings_compliance_score ON compliance_mappings(compliance_score);
 CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(read);
 
 -- Note: FTS5 virtual table creation is handled separately to avoid errors
