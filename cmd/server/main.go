@@ -1,0 +1,1029 @@
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"os"
+	"path/filepath"
+	"time"
+
+	"github.com/alec/tinybrain/internal/database"
+	"github.com/alec/tinybrain/internal/mcp"
+	"github.com/alec/tinybrain/internal/models"
+	"github.com/alec/tinybrain/internal/repository"
+	"github.com/charmbracelet/log"
+)
+
+// TinyBrainServer represents the main MCP server for security-focused memory storage
+type TinyBrainServer struct {
+	db         *database.Database
+	repo       *repository.MemoryRepository
+	logger     *log.Logger
+	dbPath     string
+}
+
+func main() {
+	// Initialize logger
+	logger := log.NewWithOptions(os.Stderr, log.Options{
+		ReportCaller:    true,
+		ReportTimestamp: true,
+		TimeFormat:      time.Kitchen,
+		Prefix:          "TinyBrain 🧠 ",
+		Level:           log.InfoLevel,
+	})
+
+	// Get database path from environment or use default
+	dbPath := os.Getenv("TINYBRAIN_DB_PATH")
+	if dbPath == "" {
+		homeDir, err := os.UserHomeDir()
+		if err != nil {
+			logger.Fatal("Failed to get user home directory", "error", err)
+		}
+		dbPath = filepath.Join(homeDir, ".tinybrain", "memory.db")
+	}
+
+	// Initialize database
+	db, err := database.NewDatabase(dbPath, logger)
+	if err != nil {
+		logger.Fatal("Failed to initialize database", "error", err)
+	}
+	defer db.Close()
+
+	// Initialize repository
+	repo := repository.NewMemoryRepository(db.GetDB(), logger)
+
+	// Create server instance
+	tinyBrain := &TinyBrainServer{
+		db:     db,
+		repo:   repo,
+		logger: logger,
+		dbPath: dbPath,
+	}
+
+	// Create MCP server
+	mcpServer := mcp.NewServer("TinyBrain Memory Storage", "1.0.0", 
+		"Security-focused LLM memory storage MCP server", logger)
+
+	// Register tools
+	tinyBrain.registerTools(mcpServer)
+
+	logger.Info("Starting TinyBrain MCP Server", "db_path", dbPath)
+
+	// Start server
+	if err := mcpServer.ServeStdio(); err != nil {
+		logger.Fatal("Server error", "error", err)
+	}
+}
+
+// registerTools registers all MCP tools for memory operations
+func (t *TinyBrainServer) registerTools(s *mcp.Server) {
+	// Session management tools
+	s.AddTool("create_session", 
+		"Create a new security-focused session for tracking LLM interactions",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"name": map[string]interface{}{
+					"type":        "string",
+					"description": "Name of the session",
+				},
+				"description": map[string]interface{}{
+					"type":        "string",
+					"description": "Description of the session",
+				},
+				"task_type": map[string]interface{}{
+					"type":        "string",
+					"description": "Type of security task: security_review, penetration_test, exploit_dev, vulnerability_analysis, threat_modeling, incident_response, general",
+				},
+				"metadata": map[string]interface{}{
+					"type":        "string",
+					"description": "JSON metadata for the session",
+				},
+			},
+			"required": []string{"name", "task_type"},
+		},
+		t.handleCreateSession,
+	)
+
+	s.AddTool("get_session",
+		"Retrieve a session by ID",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"session_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ID of the session to retrieve",
+				},
+			},
+			"required": []string{"session_id"},
+		},
+		t.handleGetSession,
+	)
+
+	s.AddTool("list_sessions",
+		"List all sessions with optional filtering",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"task_type": map[string]interface{}{
+					"type":        "string",
+					"description": "Filter by task type",
+				},
+				"status": map[string]interface{}{
+					"type":        "string",
+					"description": "Filter by status: active, paused, completed, archived",
+				},
+				"limit": map[string]interface{}{
+					"type":        "number",
+					"description": "Maximum number of sessions to return (default: 50)",
+				},
+				"offset": map[string]interface{}{
+					"type":        "number",
+					"description": "Number of sessions to skip (default: 0)",
+				},
+			},
+		},
+		t.handleListSessions,
+	)
+
+	// Memory entry tools
+	s.AddTool("store_memory",
+		"Store a new piece of information in memory with security-focused categorization",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"session_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ID of the session this memory belongs to",
+				},
+				"title": map[string]interface{}{
+					"type":        "string",
+					"description": "Title/summary of the memory",
+				},
+				"content": map[string]interface{}{
+					"type":        "string",
+					"description": "Content of the memory",
+				},
+				"category": map[string]interface{}{
+					"type":        "string",
+					"description": "Category: finding, vulnerability, exploit, payload, technique, tool, reference, context, hypothesis, evidence, recommendation, note",
+				},
+				"content_type": map[string]interface{}{
+					"type":        "string",
+					"description": "Content type: text, code, json, yaml, markdown, binary_ref (default: text)",
+				},
+				"priority": map[string]interface{}{
+					"type":        "number",
+					"description": "Priority level 0-10 (default: 5)",
+				},
+				"confidence": map[string]interface{}{
+					"type":        "number",
+					"description": "Confidence level 0.0-1.0 (default: 0.5)",
+				},
+				"tags": map[string]interface{}{
+					"type":        "string",
+					"description": "JSON array of tags",
+				},
+				"source": map[string]interface{}{
+					"type":        "string",
+					"description": "Source of this information",
+				},
+			},
+			"required": []string{"session_id", "title", "content", "category"},
+		},
+		t.handleStoreMemory,
+	)
+
+	s.AddTool("get_memory",
+		"Retrieve a specific memory entry by ID",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"memory_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ID of the memory entry to retrieve",
+				},
+			},
+			"required": []string{"memory_id"},
+		},
+		t.handleGetMemory,
+	)
+
+	s.AddTool("search_memories",
+		"Search for memories using various search strategies optimized for security tasks",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"query": map[string]interface{}{
+					"type":        "string",
+					"description": "Search query",
+				},
+				"session_id": map[string]interface{}{
+					"type":        "string",
+					"description": "Limit search to specific session",
+				},
+				"search_type": map[string]interface{}{
+					"type":        "string",
+					"description": "Search type: semantic, exact, fuzzy, tag, category, relationship (default: semantic)",
+				},
+				"categories": map[string]interface{}{
+					"type":        "string",
+					"description": "JSON array of categories to filter by",
+				},
+				"tags": map[string]interface{}{
+					"type":        "string",
+					"description": "JSON array of tags to filter by",
+				},
+				"min_priority": map[string]interface{}{
+					"type":        "number",
+					"description": "Minimum priority level (0-10)",
+				},
+				"min_confidence": map[string]interface{}{
+					"type":        "number",
+					"description": "Minimum confidence level (0.0-1.0)",
+				},
+				"limit": map[string]interface{}{
+					"type":        "number",
+					"description": "Maximum number of results (default: 20)",
+				},
+				"offset": map[string]interface{}{
+					"type":        "number",
+					"description": "Number of results to skip (default: 0)",
+				},
+			},
+			"required": []string{"query"},
+		},
+		t.handleSearchMemories,
+	)
+
+	s.AddTool("get_related_memories",
+		"Get memories related to a specific memory entry",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"memory_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ID of the memory entry to find related memories for",
+				},
+				"relationship_type": map[string]interface{}{
+					"type":        "string",
+					"description": "Type of relationship: depends_on, causes, mitigates, exploits, references, contradicts, supports, related_to, parent_of, child_of",
+				},
+				"limit": map[string]interface{}{
+					"type":        "number",
+					"description": "Maximum number of related memories (default: 10)",
+				},
+			},
+			"required": []string{"memory_id"},
+		},
+		t.handleGetRelatedMemories,
+	)
+
+	// Relationship tools
+	s.AddTool("create_relationship",
+		"Create a relationship between two memory entries",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"source_memory_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ID of the source memory entry",
+				},
+				"target_memory_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ID of the target memory entry",
+				},
+				"relationship_type": map[string]interface{}{
+					"type":        "string",
+					"description": "Type of relationship",
+				},
+				"strength": map[string]interface{}{
+					"type":        "number",
+					"description": "Strength of relationship 0.0-1.0 (default: 0.5)",
+				},
+				"description": map[string]interface{}{
+					"type":        "string",
+					"description": "Description of the relationship",
+				},
+			},
+			"required": []string{"source_memory_id", "target_memory_id", "relationship_type"},
+		},
+		t.handleCreateRelationship,
+	)
+
+	// Context management tools
+	s.AddTool("get_context_summary",
+		"Get a summary of relevant memories for current context",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"session_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ID of the session to get context for",
+				},
+				"current_task": map[string]interface{}{
+					"type":        "string",
+					"description": "Description of current task for context relevance",
+				},
+				"max_memories": map[string]interface{}{
+					"type":        "number",
+					"description": "Maximum number of memories to include (default: 20)",
+				},
+			},
+			"required": []string{"session_id"},
+		},
+		t.handleGetContextSummary,
+	)
+
+	// Task progress tools
+	s.AddTool("update_task_progress",
+		"Update progress on a multi-stage security task",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"session_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ID of the session",
+				},
+				"task_name": map[string]interface{}{
+					"type":        "string",
+					"description": "Name of the task",
+				},
+				"stage": map[string]interface{}{
+					"type":        "string",
+					"description": "Current stage of the task",
+				},
+				"status": map[string]interface{}{
+					"type":        "string",
+					"description": "Status: pending, in_progress, completed, failed, blocked",
+				},
+				"progress_percentage": map[string]interface{}{
+					"type":        "number",
+					"description": "Progress percentage 0-100",
+				},
+				"notes": map[string]interface{}{
+					"type":        "string",
+					"description": "Notes about the current progress",
+				},
+			},
+			"required": []string{"session_id", "task_name", "stage", "status"},
+		},
+		t.handleUpdateTaskProgress,
+	)
+
+	// Utility tools
+	s.AddTool("get_database_stats",
+		"Get database statistics and health information",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{},
+		},
+		t.handleGetDatabaseStats,
+	)
+
+	// Context snapshot tools
+	s.AddTool("create_context_snapshot", 
+		"Create a snapshot of the current context for a session",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"session_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ID of the session",
+				},
+				"name": map[string]interface{}{
+					"type":        "string",
+					"description": "Name of the context snapshot",
+				},
+				"description": map[string]interface{}{
+					"type":        "string",
+					"description": "Description of the context snapshot",
+				},
+				"context_data": map[string]interface{}{
+					"type":        "string",
+					"description": "JSON string containing context data",
+				},
+			},
+			"required": []string{"session_id", "name"},
+		},
+		t.handleCreateContextSnapshot,
+	)
+
+	s.AddTool("get_context_snapshot", 
+		"Retrieve a context snapshot by ID",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"snapshot_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ID of the context snapshot to retrieve",
+				},
+			},
+			"required": []string{"snapshot_id"},
+		},
+		t.handleGetContextSnapshot,
+	)
+
+	s.AddTool("list_context_snapshots", 
+		"List context snapshots for a session",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"session_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ID of the session",
+				},
+				"limit": map[string]interface{}{
+					"type":        "number",
+					"description": "Maximum number of snapshots to return (default: 20)",
+				},
+				"offset": map[string]interface{}{
+					"type":        "number",
+					"description": "Number of snapshots to skip (default: 0)",
+				},
+			},
+			"required": []string{"session_id"},
+		},
+		t.handleListContextSnapshots,
+	)
+
+	// Task progress tools
+	s.AddTool("create_task_progress", 
+		"Create a new task progress entry for tracking multi-stage security tasks",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"session_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ID of the session",
+				},
+				"task_name": map[string]interface{}{
+					"type":        "string",
+					"description": "Name of the task",
+				},
+				"stage": map[string]interface{}{
+					"type":        "string",
+					"description": "Current stage of the task",
+				},
+				"status": map[string]interface{}{
+					"type":        "string",
+					"description": "Status: pending, in_progress, completed, failed, blocked",
+				},
+				"progress_percentage": map[string]interface{}{
+					"type":        "number",
+					"description": "Progress percentage 0-100",
+				},
+				"notes": map[string]interface{}{
+					"type":        "string",
+					"description": "Notes about the current progress",
+				},
+			},
+			"required": []string{"session_id", "task_name", "stage", "status"},
+		},
+		t.handleCreateTaskProgress,
+	)
+
+	s.AddTool("get_task_progress", 
+		"Retrieve a task progress entry by ID",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"task_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ID of the task progress entry",
+				},
+			},
+			"required": []string{"task_id"},
+		},
+		t.handleGetTaskProgress,
+	)
+
+	s.AddTool("list_task_progress", 
+		"List task progress entries for a session",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"session_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ID of the session",
+				},
+				"status": map[string]interface{}{
+					"type":        "string",
+					"description": "Filter by status: pending, in_progress, completed, failed, blocked",
+				},
+				"limit": map[string]interface{}{
+					"type":        "number",
+					"description": "Maximum number of tasks to return (default: 20)",
+				},
+				"offset": map[string]interface{}{
+					"type":        "number",
+					"description": "Number of tasks to skip (default: 0)",
+				},
+			},
+			"required": []string{"session_id"},
+		},
+		t.handleListTaskProgress,
+	)
+
+	s.AddTool("health_check",
+		"Perform a health check on the database and server",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{},
+		},
+		t.handleHealthCheck,
+	)
+}
+
+
+// Tool handlers
+
+func (t *TinyBrainServer) handleCreateSession(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	name, ok := params["name"].(string)
+	if !ok {
+		return nil, fmt.Errorf("name is required")
+	}
+
+	taskType, ok := params["task_type"].(string)
+	if !ok {
+		return nil, fmt.Errorf("task_type is required")
+	}
+
+	description, _ := params["description"].(string)
+	metadataStr, _ := params["metadata"].(string)
+
+	var metadata map[string]interface{}
+	if metadataStr != "" {
+		if err := json.Unmarshal([]byte(metadataStr), &metadata); err != nil {
+			return nil, fmt.Errorf("invalid metadata JSON: %v", err)
+		}
+	}
+
+	session := &models.Session{
+		ID:          fmt.Sprintf("session_%d", time.Now().UnixNano()),
+		Name:        name,
+		Description: description,
+		TaskType:    taskType,
+		Status:      "active",
+		Metadata:    metadata,
+	}
+
+	if err := t.repo.CreateSession(ctx, session); err != nil {
+		return nil, fmt.Errorf("failed to create session: %v", err)
+	}
+
+	return session, nil
+}
+
+func (t *TinyBrainServer) handleGetSession(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	sessionID, ok := params["session_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("session_id is required")
+	}
+
+	session, err := t.repo.GetSession(ctx, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get session: %v", err)
+	}
+
+	return session, nil
+}
+
+func (t *TinyBrainServer) handleListSessions(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	taskType, _ := params["task_type"].(string)
+	status, _ := params["status"].(string)
+	
+	limit := 50
+	if limitVal, ok := params["limit"].(float64); ok {
+		limit = int(limitVal)
+	}
+
+	offset := 0
+	if offsetVal, ok := params["offset"].(float64); ok {
+		offset = int(offsetVal)
+	}
+
+	sessions, err := t.repo.ListSessions(ctx, taskType, status, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list sessions: %v", err)
+	}
+
+	return sessions, nil
+}
+
+func (t *TinyBrainServer) handleStoreMemory(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	sessionID, ok := params["session_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("session_id is required")
+	}
+
+	title, ok := params["title"].(string)
+	if !ok {
+		return nil, fmt.Errorf("title is required")
+	}
+
+	content, ok := params["content"].(string)
+	if !ok {
+		return nil, fmt.Errorf("content is required")
+	}
+
+	category, ok := params["category"].(string)
+	if !ok {
+		return nil, fmt.Errorf("category is required")
+	}
+
+	contentType, _ := params["content_type"].(string)
+	priority := 5
+	if priorityVal, ok := params["priority"].(float64); ok {
+		priority = int(priorityVal)
+	}
+
+	confidence := 0.5
+	if confidenceVal, ok := params["confidence"].(float64); ok {
+		confidence = confidenceVal
+	}
+
+	var tags []string
+	if tagsStr, ok := params["tags"].(string); ok && tagsStr != "" {
+		if err := json.Unmarshal([]byte(tagsStr), &tags); err != nil {
+			return nil, fmt.Errorf("invalid tags JSON: %v", err)
+		}
+	}
+
+	source, _ := params["source"].(string)
+
+	memoryReq := &models.CreateMemoryEntryRequest{
+		SessionID:   sessionID,
+		Title:       title,
+		Content:     content,
+		ContentType: contentType,
+		Category:    category,
+		Priority:    priority,
+		Confidence:  confidence,
+		Tags:        tags,
+		Source:      source,
+	}
+
+	entry, err := t.repo.CreateMemoryEntry(ctx, memoryReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to store memory: %v", err)
+	}
+
+	return entry, nil
+}
+
+func (t *TinyBrainServer) handleGetMemory(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	memoryID, ok := params["memory_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("memory_id is required")
+	}
+
+	entry, err := t.repo.GetMemoryEntry(ctx, memoryID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get memory: %v", err)
+	}
+
+	return entry, nil
+}
+
+func (t *TinyBrainServer) handleSearchMemories(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	query, ok := params["query"].(string)
+	if !ok {
+		return nil, fmt.Errorf("query is required")
+	}
+
+	sessionID, _ := params["session_id"].(string)
+	searchType, _ := params["search_type"].(string)
+	if searchType == "" {
+		searchType = "semantic"
+	}
+
+	var categories []string
+	if categoriesStr, ok := params["categories"].(string); ok && categoriesStr != "" {
+		if err := json.Unmarshal([]byte(categoriesStr), &categories); err != nil {
+			return nil, fmt.Errorf("invalid categories JSON: %v", err)
+		}
+	}
+
+	var tags []string
+	if tagsStr, ok := params["tags"].(string); ok && tagsStr != "" {
+		if err := json.Unmarshal([]byte(tagsStr), &tags); err != nil {
+			return nil, fmt.Errorf("invalid tags JSON: %v", err)
+		}
+	}
+
+	minPriority := 0
+	if priorityVal, ok := params["min_priority"].(float64); ok {
+		minPriority = int(priorityVal)
+	}
+
+	minConfidence := 0.0
+	if confidenceVal, ok := params["min_confidence"].(float64); ok {
+		minConfidence = confidenceVal
+	}
+
+	limit := 20
+	if limitVal, ok := params["limit"].(float64); ok {
+		limit = int(limitVal)
+	}
+
+	offset := 0
+	if offsetVal, ok := params["offset"].(float64); ok {
+		offset = int(offsetVal)
+	}
+
+	searchReq := &models.SearchRequest{
+		Query:        query,
+		SessionID:    sessionID,
+		Categories:   categories,
+		Tags:         tags,
+		MinPriority:  minPriority,
+		MinConfidence: minConfidence,
+		Limit:        limit,
+		Offset:       offset,
+		SearchType:   searchType,
+	}
+
+	results, err := t.repo.SearchMemoryEntries(ctx, searchReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to search memories: %v", err)
+	}
+
+	return results, nil
+}
+
+func (t *TinyBrainServer) handleGetRelatedMemories(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	memoryID, ok := params["memory_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("memory_id is required")
+	}
+
+	relationshipType, _ := params["relationship_type"].(string)
+	
+	limit := 10
+	if limitVal, ok := params["limit"].(float64); ok {
+		limit = int(limitVal)
+	}
+
+	entries, err := t.repo.GetRelatedEntries(ctx, memoryID, relationshipType, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get related memories: %v", err)
+	}
+
+	return entries, nil
+}
+
+func (t *TinyBrainServer) handleCreateRelationship(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	sourceID, ok := params["source_memory_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("source_memory_id is required")
+	}
+
+	targetID, ok := params["target_memory_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("target_memory_id is required")
+	}
+
+	relationshipType, ok := params["relationship_type"].(string)
+	if !ok {
+		return nil, fmt.Errorf("relationship_type is required")
+	}
+
+	strength := 0.5
+	if strengthVal, ok := params["strength"].(float64); ok {
+		strength = strengthVal
+	}
+
+	description, _ := params["description"].(string)
+
+	relReq := &models.CreateRelationshipRequest{
+		SourceEntryID:    sourceID,
+		TargetEntryID:    targetID,
+		RelationshipType: relationshipType,
+		Strength:         strength,
+		Description:      description,
+	}
+
+	relationship, err := t.repo.CreateRelationship(ctx, relReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create relationship: %v", err)
+	}
+
+	return relationship, nil
+}
+
+func (t *TinyBrainServer) handleGetContextSummary(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	sessionID, ok := params["session_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("session_id is required")
+	}
+
+	currentTask, _ := params["current_task"].(string)
+	
+	maxMemories := 20
+	if maxVal, ok := params["max_memories"].(float64); ok {
+		maxMemories = int(maxVal)
+	}
+
+	// Search for relevant memories
+	searchReq := &models.SearchRequest{
+		Query:      currentTask,
+		SessionID:  sessionID,
+		Limit:      maxMemories,
+		SearchType: "semantic",
+	}
+
+	results, err := t.repo.SearchMemoryEntries(ctx, searchReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get context summary: %v", err)
+	}
+
+	// Create summary
+	var relevantMemories []models.MemoryEntry
+	for _, result := range results {
+		relevantMemories = append(relevantMemories, result.MemoryEntry)
+	}
+
+	summary := &models.MemorySummary{
+		SessionID:         sessionID,
+		RelevantMemories:  relevantMemories,
+		Summary:           fmt.Sprintf("Found %d relevant memories for current context", len(relevantMemories)),
+		GeneratedAt:       time.Now(),
+	}
+
+	return summary, nil
+}
+
+func (t *TinyBrainServer) handleUpdateTaskProgress(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	// This would be implemented with a task progress repository
+	// For now, return a placeholder response
+	return map[string]string{"message": "Task progress update not yet implemented"}, nil
+}
+
+func (t *TinyBrainServer) handleGetDatabaseStats(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	stats, err := t.db.GetStats()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get database stats: %v", err)
+	}
+
+	return stats, nil
+}
+
+func (t *TinyBrainServer) handleHealthCheck(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	if err := t.db.HealthCheck(); err != nil {
+		return nil, fmt.Errorf("health check failed: %v", err)
+	}
+
+	health := map[string]interface{}{
+		"status":    "healthy",
+		"timestamp": time.Now(),
+		"db_path":   t.dbPath,
+	}
+
+	return health, nil
+}
+
+func (t *TinyBrainServer) handleCreateContextSnapshot(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	sessionID, ok := params["session_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("session_id is required")
+	}
+
+	name, ok := params["name"].(string)
+	if !ok {
+		return nil, fmt.Errorf("name is required")
+	}
+
+	description, _ := params["description"].(string)
+	contextDataStr, _ := params["context_data"].(string)
+
+	var contextData map[string]interface{}
+	if contextDataStr != "" {
+		if err := json.Unmarshal([]byte(contextDataStr), &contextData); err != nil {
+			return nil, fmt.Errorf("invalid context_data JSON: %v", err)
+		}
+	}
+
+	snapshot, err := t.repo.CreateContextSnapshot(ctx, sessionID, name, description, contextData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create context snapshot: %v", err)
+	}
+
+	return snapshot, nil
+}
+
+func (t *TinyBrainServer) handleGetContextSnapshot(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	snapshotID, ok := params["snapshot_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("snapshot_id is required")
+	}
+
+	snapshot, err := t.repo.GetContextSnapshot(ctx, snapshotID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get context snapshot: %v", err)
+	}
+
+	return snapshot, nil
+}
+
+func (t *TinyBrainServer) handleListContextSnapshots(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	sessionID, ok := params["session_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("session_id is required")
+	}
+
+	limit := 20
+	if limitVal, ok := params["limit"].(float64); ok {
+		limit = int(limitVal)
+	}
+
+	offset := 0
+	if offsetVal, ok := params["offset"].(float64); ok {
+		offset = int(offsetVal)
+	}
+
+	snapshots, err := t.repo.ListContextSnapshots(ctx, sessionID, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list context snapshots: %v", err)
+	}
+
+	return snapshots, nil
+}
+
+func (t *TinyBrainServer) handleCreateTaskProgress(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	sessionID, ok := params["session_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("session_id is required")
+	}
+
+	taskName, ok := params["task_name"].(string)
+	if !ok {
+		return nil, fmt.Errorf("task_name is required")
+	}
+
+	stage, ok := params["stage"].(string)
+	if !ok {
+		return nil, fmt.Errorf("stage is required")
+	}
+
+	status, ok := params["status"].(string)
+	if !ok {
+		return nil, fmt.Errorf("status is required")
+	}
+
+	notes, _ := params["notes"].(string)
+	
+	progressPercentage := 0
+	if progressVal, ok := params["progress_percentage"].(float64); ok {
+		progressPercentage = int(progressVal)
+	}
+
+	progress, err := t.repo.CreateTaskProgress(ctx, sessionID, taskName, stage, status, notes, progressPercentage)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create task progress: %v", err)
+	}
+
+	return progress, nil
+}
+
+func (t *TinyBrainServer) handleGetTaskProgress(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	taskID, ok := params["task_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("task_id is required")
+	}
+
+	progress, err := t.repo.GetTaskProgress(ctx, taskID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get task progress: %v", err)
+	}
+
+	return progress, nil
+}
+
+func (t *TinyBrainServer) handleListTaskProgress(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	sessionID, ok := params["session_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("session_id is required")
+	}
+
+	status, _ := params["status"].(string)
+	
+	limit := 20
+	if limitVal, ok := params["limit"].(float64); ok {
+		limit = int(limitVal)
+	}
+
+	offset := 0
+	if offsetVal, ok := params["offset"].(float64); ok {
+		offset = int(offsetVal)
+	}
+
+	tasks, err := t.repo.ListTaskProgress(ctx, sessionID, status, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list task progress: %v", err)
+	}
+
+	return tasks, nil
+}
+

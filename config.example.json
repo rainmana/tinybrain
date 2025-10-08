@@ -1,0 +1,44 @@
+{
+  "server": {
+    "name": "TinyBrain Memory Storage",
+    "version": "1.0.0",
+    "description": "Security-focused LLM memory storage MCP server"
+  },
+  "database": {
+    "path": "~/.tinybrain/memory.db",
+    "backup_enabled": true,
+    "backup_interval": "24h",
+    "max_backups": 7
+  },
+  "logging": {
+    "level": "info",
+    "format": "json",
+    "output": "stderr",
+    "report_caller": true,
+    "report_timestamp": true
+  },
+  "search": {
+    "default_limit": 20,
+    "max_limit": 100,
+    "default_search_type": "semantic",
+    "enable_fuzzy_search": true
+  },
+  "memory": {
+    "default_priority": 5,
+    "default_confidence": 0.5,
+    "auto_categorize": true,
+    "max_content_length": 10000
+  },
+  "security": {
+    "enable_foreign_keys": true,
+    "enable_secure_delete": false,
+    "connection_timeout": "30s",
+    "max_connections": 1
+  },
+  "features": {
+    "enable_relationships": true,
+    "enable_context_snapshots": true,
+    "enable_task_progress": true,
+    "enable_search_history": true
+  }
+}
