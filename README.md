@@ -410,6 +410,9 @@ The SQLite database is configured with:
 ### **Comprehensive Security Patterns**
 - **[Security Code Review Dataset](SECURITY_CODE_REVIEW_DATASET.md)** - OWASP Top 10 2021 patterns, CWE vulnerabilities, and exploitation techniques
 - **[Multi-Language Security Patterns](MULTI_LANGUAGE_SECURITY_PATTERNS.md)** - Language-specific vulnerability patterns for 10 programming languages
+- **[CWE Security Patterns](CWE_SECURITY_PATTERNS.md)** - CWE Top 25 Most Dangerous Software Errors with comprehensive vulnerability patterns
+- **[CWE LLM Dataset](CWE_LLM_DATASET.json)** - LLM-optimized CWE dataset in structured JSON format for efficient consumption
+- **[CWE TinyBrain Integration](CWE_TINYBRAIN_INTEGRATION.md)** - Integration guide for CWE dataset with TinyBrain memory system
 - **[TinyBrain Security Templates](TINYBRAIN_SECURITY_TEMPLATES.md)** - Pre-configured memory templates for consistent security assessment storage
 
 ### **AI Assistant Configurations**
