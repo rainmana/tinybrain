@@ -696,6 +696,111 @@ func (r *MemoryRepository) ListContextSnapshots(ctx context.Context, sessionID s
 	return snapshots, nil
 }
 
+// FindSimilarMemories finds memories similar to the given content
+func (r *MemoryRepository) FindSimilarMemories(ctx context.Context, sessionID, content string, threshold float64) ([]models.MemoryEntry, error) {
+	query := `
+		SELECT id, session_id, title, content, content_type, category, priority, confidence, tags, source, 
+		       created_at, updated_at, accessed_at, access_count
+		FROM memory_entries 
+		WHERE session_id = ? 
+		AND (
+			LOWER(title) LIKE LOWER(?) OR 
+			LOWER(content) LIKE LOWER(?) OR
+			LOWER(tags) LIKE LOWER(?)
+		)
+		ORDER BY priority DESC, confidence DESC
+		LIMIT 10
+	`
+
+	searchTerm := "%" + content + "%"
+	rows, err := r.db.QueryContext(ctx, query, sessionID, searchTerm, searchTerm, searchTerm)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find similar memories: %w", err)
+	}
+	defer rows.Close()
+
+	var memories []models.MemoryEntry
+	for rows.Next() {
+		var memory models.MemoryEntry
+		var tagsStr string
+		err := rows.Scan(
+			&memory.ID, &memory.SessionID, &memory.Title, &memory.Content, &memory.ContentType,
+			&memory.Category, &memory.Priority, &memory.Confidence, &tagsStr, &memory.Source,
+			&memory.CreatedAt, &memory.UpdatedAt, &memory.AccessedAt, &memory.AccessCount,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan memory entry: %w", err)
+		}
+
+		// Parse tags
+		if tagsStr != "" {
+			if err := json.Unmarshal([]byte(tagsStr), &memory.Tags); err != nil {
+				r.logger.Warn("Failed to parse tags", "memory_id", memory.ID, "error", err)
+			}
+		}
+
+		memories = append(memories, memory)
+	}
+
+	return memories, nil
+}
+
+// CheckForDuplicates checks if a memory entry is a duplicate of existing entries
+func (r *MemoryRepository) CheckForDuplicates(ctx context.Context, sessionID, title, content string) ([]models.MemoryEntry, error) {
+	query := `
+		SELECT id, session_id, title, content, content_type, category, priority, confidence, tags, source, 
+		       created_at, updated_at, accessed_at, access_count
+		FROM memory_entries 
+		WHERE session_id = ? 
+		AND (
+			LOWER(title) = LOWER(?) OR 
+			LOWER(content) = LOWER(?) OR
+			(
+				LENGTH(content) > 50 AND 
+				LENGTH(?) > 50 AND
+				(
+					LOWER(content) LIKE LOWER(?) OR 
+					LOWER(?) LIKE LOWER(content)
+				)
+			)
+		)
+		ORDER BY created_at DESC
+		LIMIT 5
+	`
+
+	contentSearch := "%" + content + "%"
+	rows, err := r.db.QueryContext(ctx, query, sessionID, title, content, content, contentSearch, content)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check for duplicates: %w", err)
+	}
+	defer rows.Close()
+
+	var duplicates []models.MemoryEntry
+	for rows.Next() {
+		var memory models.MemoryEntry
+		var tagsStr string
+		err := rows.Scan(
+			&memory.ID, &memory.SessionID, &memory.Title, &memory.Content, &memory.ContentType,
+			&memory.Category, &memory.Priority, &memory.Confidence, &tagsStr, &memory.Source,
+			&memory.CreatedAt, &memory.UpdatedAt, &memory.AccessedAt, &memory.AccessCount,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan memory entry: %w", err)
+		}
+
+		// Parse tags
+		if tagsStr != "" {
+			if err := json.Unmarshal([]byte(tagsStr), &memory.Tags); err != nil {
+				r.logger.Warn("Failed to parse tags", "memory_id", memory.ID, "error", err)
+			}
+		}
+
+		duplicates = append(duplicates, memory)
+	}
+
+	return duplicates, nil
+}
+
 // generateMemorySummary generates a summary of relevant memories for the given context
 func (r *MemoryRepository) generateMemorySummary(ctx context.Context, sessionID string, contextData map[string]interface{}) (string, error) {
 	// Get recent high-priority memories

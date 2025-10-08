@@ -526,6 +526,52 @@ func (t *TinyBrainServer) registerTools(s *mcp.Server) {
 		t.handleListTaskProgress,
 	)
 
+	s.AddTool("find_similar_memories",
+		"Find memories similar to the given content for deduplication",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"session_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ID of the session",
+				},
+				"content": map[string]interface{}{
+					"type":        "string",
+					"description": "Content to find similar memories for",
+				},
+				"threshold": map[string]interface{}{
+					"type":        "number",
+					"description": "Similarity threshold (0.0-1.0, default: 0.7)",
+				},
+			},
+			"required": []string{"session_id", "content"},
+		},
+		t.handleFindSimilarMemories,
+	)
+
+	s.AddTool("check_duplicates",
+		"Check if a memory entry is a duplicate of existing entries",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"session_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ID of the session",
+				},
+				"title": map[string]interface{}{
+					"type":        "string",
+					"description": "Title of the memory entry",
+				},
+				"content": map[string]interface{}{
+					"type":        "string",
+					"description": "Content of the memory entry",
+				},
+			},
+			"required": []string{"session_id", "title", "content"},
+		},
+		t.handleCheckDuplicates,
+	)
+
 	s.AddTool("health_check",
 		"Perform a health check on the database and server",
 		map[string]interface{}{
@@ -907,6 +953,54 @@ func (t *TinyBrainServer) handleUpdateTaskProgress(ctx context.Context, params m
 	}
 
 	return progress, nil
+}
+
+func (t *TinyBrainServer) handleFindSimilarMemories(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	sessionID, ok := params["session_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("session_id is required")
+	}
+
+	content, ok := params["content"].(string)
+	if !ok {
+		return nil, fmt.Errorf("content is required")
+	}
+
+	threshold := 0.7
+	if thresholdVal, ok := params["threshold"].(float64); ok {
+		threshold = thresholdVal
+	}
+
+	similarMemories, err := t.repo.FindSimilarMemories(ctx, sessionID, content, threshold)
+	if err != nil {
+		return nil, fmt.Errorf("failed to find similar memories: %v", err)
+	}
+
+	return similarMemories, nil
+}
+
+func (t *TinyBrainServer) handleCheckDuplicates(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	sessionID, ok := params["session_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("session_id is required")
+	}
+
+	title, ok := params["title"].(string)
+	if !ok {
+		return nil, fmt.Errorf("title is required")
+	}
+
+	content, ok := params["content"].(string)
+	if !ok {
+		return nil, fmt.Errorf("content is required")
+	}
+
+	duplicates, err := t.repo.CheckForDuplicates(ctx, sessionID, title, content)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check for duplicates: %v", err)
+	}
+
+	return duplicates, nil
 }
 
 func (t *TinyBrainServer) handleGetDatabaseStats(ctx context.Context, params map[string]interface{}) (interface{}, error) {
