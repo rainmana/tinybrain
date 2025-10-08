@@ -1922,6 +1922,282 @@ func (r *MemoryRepository) StoreEmbedding(ctx context.Context, memoryID string, 
 	return nil
 }
 
+// NotificationService handles real-time memory notifications and alerts
+type NotificationService struct {
+	repo   *MemoryRepository
+	logger *log.Logger
+}
+
+// Notification represents a memory-related notification
+type Notification struct {
+	ID          string                 `json:"id"`
+	Type        string                 `json:"type"`        // "memory_created", "memory_updated", "duplicate_found", "high_priority", "cleanup_performed"
+	Title       string                 `json:"title"`
+	Message     string                 `json:"message"`
+	MemoryID    string                 `json:"memory_id,omitempty"`
+	SessionID   string                 `json:"session_id,omitempty"`
+	Priority    int                    `json:"priority"`
+	Metadata    map[string]interface{} `json:"metadata"`
+	CreatedAt   time.Time              `json:"created_at"`
+	Read        bool                   `json:"read"`
+}
+
+// CreateNotification creates a new notification
+func (r *MemoryRepository) CreateNotification(ctx context.Context, notification *Notification) error {
+	query := `
+		INSERT INTO notifications (id, type, title, message, memory_id, session_id, priority, metadata, created_at, read)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+	`
+	
+	metadataJSON, err := json.Marshal(notification.Metadata)
+	if err != nil {
+		return fmt.Errorf("failed to marshal metadata: %w", err)
+	}
+	
+	_, err = r.db.ExecContext(ctx, query,
+		notification.ID,
+		notification.Type,
+		notification.Title,
+		notification.Message,
+		notification.MemoryID,
+		notification.SessionID,
+		notification.Priority,
+		string(metadataJSON),
+		notification.CreatedAt,
+		notification.Read,
+	)
+	
+	if err != nil {
+		return fmt.Errorf("failed to create notification: %w", err)
+	}
+	
+	r.logger.Info("Notification created", "id", notification.ID, "type", notification.Type, "priority", notification.Priority)
+	return nil
+}
+
+// GetNotifications retrieves notifications for a session
+func (r *MemoryRepository) GetNotifications(ctx context.Context, sessionID string, limit int, offset int) ([]*Notification, error) {
+	query := `
+		SELECT id, type, title, message, memory_id, session_id, priority, metadata, created_at, read
+		FROM notifications
+		WHERE session_id = ? OR session_id IS NULL
+		ORDER BY priority DESC, created_at DESC
+		LIMIT ? OFFSET ?
+	`
+	
+	rows, err := r.db.QueryContext(ctx, query, sessionID, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get notifications: %w", err)
+	}
+	defer rows.Close()
+	
+	var notifications []*Notification
+	for rows.Next() {
+		var notification Notification
+		var metadataJSON string
+		
+		err := rows.Scan(
+			&notification.ID,
+			&notification.Type,
+			&notification.Title,
+			&notification.Message,
+			&notification.MemoryID,
+			&notification.SessionID,
+			&notification.Priority,
+			&metadataJSON,
+			&notification.CreatedAt,
+			&notification.Read,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan notification: %w", err)
+		}
+		
+		if metadataJSON != "" {
+			if err := json.Unmarshal([]byte(metadataJSON), &notification.Metadata); err != nil {
+				return nil, fmt.Errorf("failed to unmarshal metadata: %w", err)
+			}
+		}
+		
+		notifications = append(notifications, &notification)
+	}
+	
+	return notifications, nil
+}
+
+// MarkNotificationRead marks a notification as read
+func (r *MemoryRepository) MarkNotificationRead(ctx context.Context, notificationID string) error {
+	query := `UPDATE notifications SET read = true WHERE id = ?`
+	
+	_, err := r.db.ExecContext(ctx, query, notificationID)
+	if err != nil {
+		return fmt.Errorf("failed to mark notification as read: %w", err)
+	}
+	
+	r.logger.Debug("Notification marked as read", "id", notificationID)
+	return nil
+}
+
+// CheckForHighPriorityMemories checks for high-priority memories and creates notifications
+func (r *MemoryRepository) CheckForHighPriorityMemories(ctx context.Context, sessionID string) error {
+	query := `
+		SELECT id, title, priority, confidence, category
+		FROM memory_entries
+		WHERE session_id = ? AND priority >= 8 AND confidence >= 0.8
+		AND created_at > datetime('now', '-1 hour')
+		AND id NOT IN (
+			SELECT memory_id FROM notifications 
+			WHERE type = 'high_priority' AND memory_id IS NOT NULL
+		)
+	`
+	
+	rows, err := r.db.QueryContext(ctx, query, sessionID)
+	if err != nil {
+		return fmt.Errorf("failed to check high priority memories: %w", err)
+	}
+	defer rows.Close()
+	
+	for rows.Next() {
+		var memoryID, title, category string
+		var priority int
+		var confidence float64
+		
+		err := rows.Scan(&memoryID, &title, &priority, &confidence, &category)
+		if err != nil {
+			return fmt.Errorf("failed to scan high priority memory: %w", err)
+		}
+		
+		notification := &Notification{
+			ID:        uuid.New().String(),
+			Type:      "high_priority",
+			Title:     "High Priority Memory Alert",
+			Message:   fmt.Sprintf("High priority %s memory created: %s (Priority: %d, Confidence: %.2f)", category, title, priority, confidence),
+			MemoryID:  memoryID,
+			SessionID: sessionID,
+			Priority:  9,
+			Metadata: map[string]interface{}{
+				"memory_priority": priority,
+				"memory_confidence": confidence,
+				"memory_category": category,
+			},
+			CreatedAt: time.Now(),
+			Read:      false,
+		}
+		
+		if err := r.CreateNotification(ctx, notification); err != nil {
+			r.logger.Error("Failed to create high priority notification", "error", err)
+		}
+	}
+	
+	return nil
+}
+
+// CheckForDuplicateMemories checks for potential duplicate memories and creates notifications
+func (r *MemoryRepository) CheckForDuplicateMemories(ctx context.Context, sessionID string) error {
+	// Get all memories for the session to check for duplicates
+	searchReq := &models.SearchRequest{
+		Query:      "",
+		SessionID:  sessionID,
+		Limit:      1000,
+		SearchType: "exact",
+	}
+	
+	searchResults, err := r.SearchMemoryEntries(ctx, searchReq)
+	if err != nil {
+		return fmt.Errorf("failed to get memories for duplicate check: %w", err)
+	}
+	
+	// Check each memory for potential duplicates
+	for _, result := range searchResults {
+		memory := result.MemoryEntry
+		
+		// Check for duplicates using the existing function
+		duplicates, err := r.CheckForDuplicates(ctx, sessionID, memory.Title, memory.Content)
+		if err != nil {
+			continue
+		}
+		
+		// If we found duplicates, create a notification
+		if len(duplicates) > 0 {
+			// Check if we already notified about this duplicate
+			var count int
+			err := r.db.QueryRowContext(ctx, 
+				"SELECT COUNT(*) FROM notifications WHERE type = 'duplicate_found' AND memory_id = ?",
+				memory.ID).Scan(&count)
+			if err != nil {
+				continue
+			}
+			
+			if count > 0 {
+				continue // Already notified
+			}
+			
+			notification := &Notification{
+				ID:        uuid.New().String(),
+				Type:      "duplicate_found",
+				Title:     "Potential Duplicate Memory",
+				Message:   fmt.Sprintf("Potential duplicate memory found: %s (%d similar entries)", memory.Title, len(duplicates)),
+				MemoryID:  memory.ID,
+				SessionID: sessionID,
+				Priority:  6,
+				Metadata: map[string]interface{}{
+					"duplicate_count": len(duplicates),
+					"memory_title": memory.Title,
+				},
+				CreatedAt: time.Now(),
+				Read:      false,
+			}
+			
+			if err := r.CreateNotification(ctx, notification); err != nil {
+				r.logger.Error("Failed to create duplicate notification", "error", err)
+			}
+		}
+	}
+	
+	return nil
+}
+
+// CreateMemoryCreatedNotification creates a notification when a memory is created
+func (r *MemoryRepository) CreateMemoryCreatedNotification(ctx context.Context, memory *models.MemoryEntry) error {
+	notification := &Notification{
+		ID:        uuid.New().String(),
+		Type:      "memory_created",
+		Title:     "Memory Created",
+		Message:   fmt.Sprintf("New %s memory created: %s", memory.Category, memory.Title),
+		MemoryID:  memory.ID,
+		SessionID: memory.SessionID,
+		Priority:  5,
+		Metadata: map[string]interface{}{
+			"memory_category": memory.Category,
+			"memory_priority": memory.Priority,
+			"memory_confidence": memory.Confidence,
+		},
+		CreatedAt: time.Now(),
+		Read:      false,
+	}
+	
+	return r.CreateNotification(ctx, notification)
+}
+
+// CreateCleanupNotification creates a notification when cleanup operations are performed
+func (r *MemoryRepository) CreateCleanupNotification(ctx context.Context, cleanupType string, count int, sessionID string) error {
+	notification := &Notification{
+		ID:        uuid.New().String(),
+		Type:      "cleanup_performed",
+		Title:     "Memory Cleanup Performed",
+		Message:   fmt.Sprintf("%s cleanup completed: %d memories processed", cleanupType, count),
+		SessionID: sessionID,
+		Priority:  4,
+		Metadata: map[string]interface{}{
+			"cleanup_type": cleanupType,
+			"cleanup_count": count,
+		},
+		CreatedAt: time.Now(),
+		Read:      false,
+	}
+	
+	return r.CreateNotification(ctx, notification)
+}
+
 // generateMemorySummary generates a summary of relevant memories for the given context
 func (r *MemoryRepository) generateMemorySummary(ctx context.Context, sessionID string, contextData map[string]interface{}) (string, error) {
 	// Get recent high-priority memories

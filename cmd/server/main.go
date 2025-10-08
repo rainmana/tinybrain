@@ -834,6 +834,74 @@ func (t *TinyBrainServer) registerTools(s *mcp.Server) {
 		t.handleCalculateSimilarity,
 	)
 
+	s.AddTool("get_notifications",
+		"Get notifications and alerts for a session",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"session_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ID of the session to get notifications for",
+				},
+				"limit": map[string]interface{}{
+					"type":        "number",
+					"description": "Maximum number of notifications to return (default: 20)",
+				},
+				"offset": map[string]interface{}{
+					"type":        "number",
+					"description": "Number of notifications to skip (default: 0)",
+				},
+			},
+			"required": []string{"session_id"},
+		},
+		t.handleGetNotifications,
+	)
+
+	s.AddTool("mark_notification_read",
+		"Mark a notification as read",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"notification_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ID of the notification to mark as read",
+				},
+			},
+			"required": []string{"notification_id"},
+		},
+		t.handleMarkNotificationRead,
+	)
+
+	s.AddTool("check_high_priority_memories",
+		"Check for high-priority memories and create notifications",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"session_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ID of the session to check for high-priority memories",
+				},
+			},
+			"required": []string{"session_id"},
+		},
+		t.handleCheckHighPriorityMemories,
+	)
+
+	s.AddTool("check_duplicate_memories",
+		"Check for duplicate memories and create notifications",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"session_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ID of the session to check for duplicate memories",
+				},
+			},
+			"required": []string{"session_id"},
+		},
+		t.handleCheckDuplicateMemories,
+	)
+
 	s.AddTool("health_check",
 		"Perform a health check on the database and server",
 		map[string]interface{}{
@@ -1589,6 +1657,87 @@ func (t *TinyBrainServer) handleCalculateSimilarity(ctx context.Context, params 
 		"similarity": similarity,
 		"embedding1_dimension": len(embedding1),
 		"embedding2_dimension": len(embedding2),
+	}, nil
+}
+
+func (t *TinyBrainServer) handleGetNotifications(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	sessionID, ok := params["session_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("session_id is required")
+	}
+
+	limit := 20
+	if limitVal, ok := params["limit"].(float64); ok {
+		limit = int(limitVal)
+	}
+
+	offset := 0
+	if offsetVal, ok := params["offset"].(float64); ok {
+		offset = int(offsetVal)
+	}
+
+	notifications, err := t.repo.GetNotifications(ctx, sessionID, limit, offset)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get notifications: %v", err)
+	}
+
+	return map[string]interface{}{
+		"notifications": notifications,
+		"count":         len(notifications),
+		"session_id":    sessionID,
+		"limit":         limit,
+		"offset":        offset,
+	}, nil
+}
+
+func (t *TinyBrainServer) handleMarkNotificationRead(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	notificationID, ok := params["notification_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("notification_id is required")
+	}
+
+	err := t.repo.MarkNotificationRead(ctx, notificationID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to mark notification as read: %v", err)
+	}
+
+	return map[string]interface{}{
+		"notification_id": notificationID,
+		"message":         "Notification marked as read",
+	}, nil
+}
+
+func (t *TinyBrainServer) handleCheckHighPriorityMemories(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	sessionID, ok := params["session_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("session_id is required")
+	}
+
+	err := t.repo.CheckForHighPriorityMemories(ctx, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check high priority memories: %v", err)
+	}
+
+	return map[string]interface{}{
+		"session_id": sessionID,
+		"message":    "High priority memory check completed",
+	}, nil
+}
+
+func (t *TinyBrainServer) handleCheckDuplicateMemories(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	sessionID, ok := params["session_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("session_id is required")
+	}
+
+	err := t.repo.CheckForDuplicateMemories(ctx, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check duplicate memories: %v", err)
+	}
+
+	return map[string]interface{}{
+		"session_id": sessionID,
+		"message":    "Duplicate memory check completed",
 	}, nil
 }
 

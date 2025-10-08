@@ -24,11 +24,85 @@ TinyBrain is a comprehensive memory storage system designed specifically for sec
 - **Transaction Safety**: ACID compliance for data integrity
 - **Concurrent Access**: Thread-safe operations for multiple LLM interactions
 
+### AI-Enhanced Search & Intelligence
+- **Semantic Search**: AI-powered memory search using embeddings for conceptual similarity
+- **Embedding Generation**: Generate embeddings for text (placeholder for AI integration)
+- **Similarity Calculation**: Calculate semantic similarity between embeddings
+- **Future-Ready**: Complete foundation for OpenAI, Cohere, or local model integration
+
+### Real-Time Notifications & Alerts
+- **Memory Notifications**: Real-time alerts for memory events and system activities
+- **High Priority Alerts**: Notifications for high-priority memories (priority ≥8, confidence ≥0.8)
+- **Duplicate Detection**: Alerts for potential duplicate memories with similarity scores
+- **Cleanup Notifications**: Notifications for automated cleanup operations
+- **Notification Management**: Mark notifications as read, filter by session, priority-based sorting
+
 ### Developer Experience
 - **Simple Installation**: `go install` or `go build`
 - **Comprehensive Logging**: Detailed logging with structured output
 - **Extensive Testing**: 90%+ test coverage with benchmarks
 - **Docker Support**: Containerized deployment ready
+- **40 MCP Tools**: Complete API for all memory management operations
+
+## 🛠️ Complete MCP Tool Set (40 Tools)
+
+TinyBrain provides a comprehensive set of 40 MCP tools for complete LLM memory management:
+
+### Core Memory Operations (8 tools)
+- `store_memory` - Store new memory entries
+- `get_memory` - Retrieve memory by ID
+- `search_memories` - Advanced search with multiple strategies
+- `update_memory` - Update existing memory entries
+- `delete_memory` - Delete memory entries
+- `find_similar_memories` - Find similar memories by content
+- `check_duplicates` - Check for duplicate memories
+- `get_memory_stats` - Get comprehensive memory statistics
+
+### Session & Task Management (6 tools)
+- `create_session` - Create new security assessment sessions
+- `get_session` - Retrieve session information
+- `list_sessions` - List all sessions with filtering
+- `create_task_progress` - Create task progress entries
+- `update_task_progress` - Update task progress
+- `list_task_progress` - List task progress entries
+
+### Advanced Memory Features (8 tools)
+- `create_relationship` - Create memory relationships
+- `get_related_memories` - Get related memories
+- `create_context_snapshot` - Create context snapshots
+- `get_context_snapshot` - Retrieve context snapshots
+- `list_context_snapshots` - List context snapshots
+- `get_context_summary` - Get memory summaries for context
+- `export_session_data` - Export session data
+- `import_session_data` - Import session data
+
+### Security Templates & Batch Operations (6 tools)
+- `get_security_templates` - Get predefined security templates
+- `create_memory_from_template` - Create memories from templates
+- `batch_create_memories` - Bulk create memory entries
+- `batch_update_memories` - Bulk update memory entries
+- `batch_delete_memories` - Bulk delete memory entries
+- `get_detailed_memory_info` - Get detailed memory debugging info
+
+### Memory Lifecycle & Cleanup (4 tools)
+- `cleanup_old_memories` - Age-based memory cleanup
+- `cleanup_low_priority_memories` - Priority-based cleanup
+- `cleanup_unused_memories` - Access-based cleanup
+- `get_system_diagnostics` - Comprehensive system diagnostics
+
+### AI-Enhanced Search (3 tools)
+- `semantic_search` - AI-powered semantic search
+- `generate_embedding` - Generate embeddings for text
+- `calculate_similarity` - Calculate embedding similarity
+
+### Real-Time Notifications (4 tools)
+- `get_notifications` - Get notifications and alerts
+- `mark_notification_read` - Mark notifications as read
+- `check_high_priority_memories` - Check for high-priority alerts
+- `check_duplicate_memories` - Check for duplicate alerts
+
+### System Monitoring (1 tool)
+- `health_check` - Perform system health checks
 
 ## 🚀 Quick Start
 

@@ -165,6 +165,22 @@ CREATE TABLE IF NOT EXISTS task_progress (
     FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
 );
 
+-- Create notifications table for real-time alerts
+CREATE TABLE IF NOT EXISTS notifications (
+    id TEXT PRIMARY KEY,
+    type TEXT NOT NULL,
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    memory_id TEXT,
+    session_id TEXT,
+    priority INTEGER NOT NULL DEFAULT 5,
+    metadata TEXT,
+    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    read BOOLEAN NOT NULL DEFAULT FALSE,
+    FOREIGN KEY (memory_id) REFERENCES memory_entries(id) ON DELETE CASCADE,
+    FOREIGN KEY (session_id) REFERENCES sessions(id) ON DELETE CASCADE
+);
+
 -- Create indexes for performance
 CREATE INDEX IF NOT EXISTS idx_memory_entries_session_id ON memory_entries(session_id);
 CREATE INDEX IF NOT EXISTS idx_memory_entries_category ON memory_entries(category);
@@ -181,6 +197,12 @@ CREATE INDEX IF NOT EXISTS idx_context_snapshots_session_id ON context_snapshots
 CREATE INDEX IF NOT EXISTS idx_search_history_session_id ON search_history(session_id);
 CREATE INDEX IF NOT EXISTS idx_task_progress_session_id ON task_progress(session_id);
 CREATE INDEX IF NOT EXISTS idx_task_progress_status ON task_progress(status);
+
+CREATE INDEX IF NOT EXISTS idx_notifications_session_id ON notifications(session_id);
+CREATE INDEX IF NOT EXISTS idx_notifications_type ON notifications(type);
+CREATE INDEX IF NOT EXISTS idx_notifications_priority ON notifications(priority);
+CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON notifications(created_at);
+CREATE INDEX IF NOT EXISTS idx_notifications_read ON notifications(read);
 
 -- Note: FTS5 virtual table creation is handled separately to avoid errors
 -- if FTS5 is not available in the SQLite build
