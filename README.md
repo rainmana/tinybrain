@@ -36,10 +36,10 @@ TinyBrain is a comprehensive memory storage system designed specifically for sec
 
 ```bash
 # Install from source
-go install github.com/alec/tinybrain/cmd/server@latest
+go install github.com/rainmana/tinybrain/cmd/server@latest
 
 # Or build locally
-git clone https://github.com/alec/tinybrain.git
+git clone https://github.com/rainmana/tinybrain.git
 cd tinybrain
 make install
 ```
@@ -285,7 +285,7 @@ The SQLite database is configured with:
 
 ```bash
 # Clone repository
-git clone https://github.com/alec/tinybrain.git
+git clone https://github.com/rainmana/tinybrain.git
 cd tinybrain
 
 # Setup development environment

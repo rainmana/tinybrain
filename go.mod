@@ -1,4 +1,4 @@
-module github.com/alec/tinybrain
+module github.com/rainmana/tinybrain
 
 go 1.21
 
