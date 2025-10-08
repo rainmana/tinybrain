@@ -753,6 +753,30 @@ func (t *TinyBrainServer) registerTools(s *mcp.Server) {
 		t.handleGetMemoryStats,
 	)
 
+	s.AddTool("get_detailed_memory_info",
+		"Get comprehensive debugging information about a specific memory entry",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"memory_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ID of the memory entry to get detailed info for",
+				},
+			},
+			"required": []string{"memory_id"},
+		},
+		t.handleGetDetailedMemoryInfo,
+	)
+
+	s.AddTool("get_system_diagnostics",
+		"Get comprehensive system diagnostics and debugging information",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{},
+		},
+		t.handleGetSystemDiagnostics,
+	)
+
 	s.AddTool("health_check",
 		"Perform a health check on the database and server",
 		map[string]interface{}{
@@ -1407,6 +1431,29 @@ func (t *TinyBrainServer) handleGetMemoryStats(ctx context.Context, params map[s
 	}
 
 	return stats, nil
+}
+
+func (t *TinyBrainServer) handleGetDetailedMemoryInfo(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	memoryID, ok := params["memory_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("memory_id is required")
+	}
+
+	detailedInfo, err := t.repo.GetDetailedMemoryInfo(ctx, memoryID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get detailed memory info: %v", err)
+	}
+
+	return detailedInfo, nil
+}
+
+func (t *TinyBrainServer) handleGetSystemDiagnostics(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	diagnostics, err := t.repo.GetSystemDiagnostics(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get system diagnostics: %v", err)
+	}
+
+	return diagnostics, nil
 }
 
 func (t *TinyBrainServer) handleGetDatabaseStats(ctx context.Context, params map[string]interface{}) (interface{}, error) {

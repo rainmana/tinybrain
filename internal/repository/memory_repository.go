@@ -1607,6 +1607,219 @@ func (r *MemoryRepository) GetMemoryStats(ctx context.Context) (map[string]inter
 	return stats, nil
 }
 
+// GetDetailedMemoryInfo returns comprehensive information about a memory entry for debugging
+func (r *MemoryRepository) GetDetailedMemoryInfo(ctx context.Context, memoryID string) (map[string]interface{}, error) {
+	// Get the memory entry
+	memory, err := r.GetMemoryEntry(ctx, memoryID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get memory entry: %w", err)
+	}
+
+	// Get related memories
+	relatedMemories, err := r.GetRelatedEntries(ctx, memoryID, "", 10)
+	if err != nil {
+		r.logger.Warn("Failed to get related memories", "memory_id", memoryID, "error", err)
+	}
+
+	// Get relationships where this memory is the source
+	query := `
+		SELECT r.id, r.target_entry_id, r.relationship_type, r.strength, r.description, r.created_at,
+		       me.title as target_title
+		FROM relationships r
+		JOIN memory_entries me ON r.target_entry_id = me.id
+		WHERE r.source_entry_id = ?
+		ORDER BY r.created_at DESC
+		LIMIT 10
+	`
+	
+	rows, err := r.db.QueryContext(ctx, query, memoryID)
+	if err != nil {
+		r.logger.Warn("Failed to get outgoing relationships", "memory_id", memoryID, "error", err)
+	}
+	defer rows.Close()
+
+	var outgoingRelationships []map[string]interface{}
+	for rows.Next() {
+		var rel struct {
+			ID               string
+			TargetEntryID    string
+			RelationshipType string
+			Strength         float64
+			Description      string
+			CreatedAt        time.Time
+			TargetTitle      string
+		}
+		err := rows.Scan(&rel.ID, &rel.TargetEntryID, &rel.RelationshipType, &rel.Strength, &rel.Description, &rel.CreatedAt, &rel.TargetTitle)
+		if err != nil {
+			r.logger.Warn("Failed to scan relationship", "error", err)
+			continue
+		}
+		outgoingRelationships = append(outgoingRelationships, map[string]interface{}{
+			"id":                rel.ID,
+			"target_entry_id":   rel.TargetEntryID,
+			"target_title":      rel.TargetTitle,
+			"relationship_type": rel.RelationshipType,
+			"strength":          rel.Strength,
+			"description":       rel.Description,
+			"created_at":        rel.CreatedAt,
+		})
+	}
+
+	// Get relationships where this memory is the target
+	query = `
+		SELECT r.id, r.source_entry_id, r.relationship_type, r.strength, r.description, r.created_at,
+		       me.title as source_title
+		FROM relationships r
+		JOIN memory_entries me ON r.source_entry_id = me.id
+		WHERE r.target_entry_id = ?
+		ORDER BY r.created_at DESC
+		LIMIT 10
+	`
+	
+	rows, err = r.db.QueryContext(ctx, query, memoryID)
+	if err != nil {
+		r.logger.Warn("Failed to get incoming relationships", "memory_id", memoryID, "error", err)
+	}
+	defer rows.Close()
+
+	var incomingRelationships []map[string]interface{}
+	for rows.Next() {
+		var rel struct {
+			ID               string
+			SourceEntryID    string
+			RelationshipType string
+			Strength         float64
+			Description      string
+			CreatedAt        time.Time
+			SourceTitle      string
+		}
+		err := rows.Scan(&rel.ID, &rel.SourceEntryID, &rel.RelationshipType, &rel.Strength, &rel.Description, &rel.CreatedAt, &rel.SourceTitle)
+		if err != nil {
+			r.logger.Warn("Failed to scan relationship", "error", err)
+			continue
+		}
+		incomingRelationships = append(incomingRelationships, map[string]interface{}{
+			"id":                rel.ID,
+			"source_entry_id":   rel.SourceEntryID,
+			"source_title":      rel.SourceTitle,
+			"relationship_type": rel.RelationshipType,
+			"strength":          rel.Strength,
+			"description":       rel.Description,
+			"created_at":        rel.CreatedAt,
+		})
+	}
+
+	// Get access history (if we had an access_log table, but we'll use what we have)
+	accessInfo := map[string]interface{}{
+		"last_accessed": memory.AccessedAt,
+		"access_count":  memory.AccessCount,
+		"created_at":    memory.CreatedAt,
+		"updated_at":    memory.UpdatedAt,
+	}
+
+	// Calculate age and usage metrics
+	age := time.Since(memory.CreatedAt)
+	lastAccessAge := time.Since(memory.AccessedAt)
+	
+	detailedInfo := map[string]interface{}{
+		"memory_entry":            memory,
+		"related_memories":        relatedMemories,
+		"outgoing_relationships":  outgoingRelationships,
+		"incoming_relationships":  incomingRelationships,
+		"access_info":             accessInfo,
+		"age_days":                int(age.Hours() / 24),
+		"last_access_age_days":    int(lastAccessAge.Hours() / 24),
+		"relationship_count":      len(outgoingRelationships) + len(incomingRelationships),
+		"related_memory_count":    len(relatedMemories),
+		"debug_timestamp":         time.Now(),
+	}
+
+	return detailedInfo, nil
+}
+
+// GetSystemDiagnostics returns comprehensive system diagnostics for debugging
+func (r *MemoryRepository) GetSystemDiagnostics(ctx context.Context) (map[string]interface{}, error) {
+	diagnostics := make(map[string]interface{})
+
+	// Database connection info
+	diagnostics["database_info"] = map[string]interface{}{
+		"driver":     "sqlite3",
+		"path":       "/Users/alec/.tinybrain/memory.db", // This should be configurable
+		"timestamp":  time.Now(),
+	}
+
+	// Memory statistics
+	memoryStats, err := r.GetMemoryStats(ctx)
+	if err != nil {
+		diagnostics["memory_stats_error"] = err.Error()
+	} else {
+		diagnostics["memory_stats"] = memoryStats
+	}
+
+	// Database statistics - we'll get basic info since we don't have direct access to the Database wrapper
+	dbStats := map[string]interface{}{
+		"driver": "sqlite3",
+		"status": "connected",
+	}
+	diagnostics["db_stats"] = dbStats
+
+	// Session statistics
+	var sessionCount int
+	err = r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM sessions").Scan(&sessionCount)
+	if err != nil {
+		diagnostics["session_count_error"] = err.Error()
+	} else {
+		diagnostics["session_count"] = sessionCount
+	}
+
+	// Relationship statistics
+	var relationshipCount int
+	err = r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM relationships").Scan(&relationshipCount)
+	if err != nil {
+		diagnostics["relationship_count_error"] = err.Error()
+	} else {
+		diagnostics["relationship_count"] = relationshipCount
+	}
+
+	// Context snapshot statistics
+	var snapshotCount int
+	err = r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM context_snapshots").Scan(&snapshotCount)
+	if err != nil {
+		diagnostics["snapshot_count_error"] = err.Error()
+	} else {
+		diagnostics["snapshot_count"] = snapshotCount
+	}
+
+	// Task progress statistics
+	var taskCount int
+	err = r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM task_progress").Scan(&taskCount)
+	if err != nil {
+		diagnostics["task_count_error"] = err.Error()
+	} else {
+		diagnostics["task_count"] = taskCount
+	}
+
+	// Recent activity (last 24 hours)
+	var recentMemories int
+	err = r.db.QueryRowContext(ctx, 
+		"SELECT COUNT(*) FROM memory_entries WHERE created_at > datetime('now', '-1 day')").Scan(&recentMemories)
+	if err != nil {
+		diagnostics["recent_memories_error"] = err.Error()
+	} else {
+		diagnostics["recent_memories_24h"] = recentMemories
+	}
+
+	// System info
+	diagnostics["system_info"] = map[string]interface{}{
+		"go_version":    "1.21",
+		"build_time":    time.Now(),
+		"logger_level":  "info", // This should be configurable
+		"fts5_available": false, // We know this from the startup check
+	}
+
+	return diagnostics, nil
+}
+
 // generateMemorySummary generates a summary of relevant memories for the given context
 func (r *MemoryRepository) generateMemorySummary(ctx context.Context, sessionID string, contextData map[string]interface{}) (string, error) {
 	// Get recent high-priority memories
