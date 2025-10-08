@@ -246,6 +246,13 @@ func (s *Server) handleToolsCall(ctx context.Context, req *MCPRequest) *MCPRespo
 
 	s.logger.Debug("Tool executed successfully", "tool", name, "duration", duration)
 
+	// Convert result to JSON string for proper formatting
+	resultJSON, err := json.Marshal(result)
+	if err != nil {
+		s.logger.Error("Failed to marshal result to JSON", "error", err)
+		resultJSON = []byte(fmt.Sprintf("%v", result))
+	}
+
 	return &MCPResponse{
 		JSONRPC: "2.0",
 		ID:      req.ID,
@@ -253,7 +260,7 @@ func (s *Server) handleToolsCall(ctx context.Context, req *MCPRequest) *MCPRespo
 			"content": []map[string]interface{}{
 				{
 					"type": "text",
-					"text": fmt.Sprintf("%v", result),
+					"text": string(resultJSON),
 				},
 			},
 		},

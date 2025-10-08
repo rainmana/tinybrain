@@ -856,9 +856,57 @@ func (t *TinyBrainServer) handleGetContextSummary(ctx context.Context, params ma
 }
 
 func (t *TinyBrainServer) handleUpdateTaskProgress(ctx context.Context, params map[string]interface{}) (interface{}, error) {
-	// This would be implemented with a task progress repository
-	// For now, return a placeholder response
-	return map[string]string{"message": "Task progress update not yet implemented"}, nil
+	sessionID, ok := params["session_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("session_id is required")
+	}
+
+	taskName, ok := params["task_name"].(string)
+	if !ok {
+		return nil, fmt.Errorf("task_name is required")
+	}
+
+	stage, ok := params["stage"].(string)
+	if !ok {
+		return nil, fmt.Errorf("stage is required")
+	}
+
+	status, ok := params["status"].(string)
+	if !ok {
+		return nil, fmt.Errorf("status is required")
+	}
+
+	notes, _ := params["notes"].(string)
+	
+	progressPercentage := 0
+	if progressVal, ok := params["progress_percentage"].(float64); ok {
+		progressPercentage = int(progressVal)
+	}
+
+	// First, get the task ID by finding the task with the given name and session
+	tasks, err := t.repo.ListTaskProgress(ctx, sessionID, "", 100, 0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to list tasks: %v", err)
+	}
+
+	var taskID string
+	for _, task := range tasks {
+		if task.TaskName == taskName {
+			taskID = task.ID
+			break
+		}
+	}
+
+	if taskID == "" {
+		return nil, fmt.Errorf("task not found: %s", taskName)
+	}
+
+	progress, err := t.repo.UpdateTaskProgress(ctx, taskID, stage, status, notes, progressPercentage)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update task progress: %v", err)
+	}
+
+	return progress, nil
 }
 
 func (t *TinyBrainServer) handleGetDatabaseStats(ctx context.Context, params map[string]interface{}) (interface{}, error) {
