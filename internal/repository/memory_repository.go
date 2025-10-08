@@ -801,6 +801,314 @@ func (r *MemoryRepository) CheckForDuplicates(ctx context.Context, sessionID, ti
 	return duplicates, nil
 }
 
+// ExportSessionData exports all data for a session in JSON format
+func (r *MemoryRepository) ExportSessionData(ctx context.Context, sessionID string) (map[string]interface{}, error) {
+	// Get session info
+	session, err := r.GetSession(ctx, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get session: %w", err)
+	}
+
+	// Get all memory entries for the session using search
+	searchReq := &models.SearchRequest{
+		Query:      "",
+		SessionID:  sessionID,
+		Limit:      1000,
+		SearchType: "exact",
+	}
+	searchResults, err := r.SearchMemoryEntries(ctx, searchReq)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get memory entries: %w", err)
+	}
+	
+	var memories []models.MemoryEntry
+	for _, result := range searchResults {
+		memories = append(memories, result.MemoryEntry)
+	}
+
+	// Get relationships by querying the database directly
+	query := `
+		SELECT r.id, r.source_entry_id, r.target_entry_id, r.relationship_type, 
+		       r.strength, r.description, r.created_at
+		FROM relationships r
+		JOIN memory_entries me1 ON r.source_entry_id = me1.id
+		WHERE me1.session_id = ?
+		ORDER BY r.created_at DESC
+		LIMIT 1000
+	`
+	rows, err := r.db.QueryContext(ctx, query, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get relationships: %w", err)
+	}
+	defer rows.Close()
+	
+	var relationships []models.Relationship
+	for rows.Next() {
+		var rel models.Relationship
+		err := rows.Scan(
+			&rel.ID, &rel.SourceEntryID, &rel.TargetEntryID, &rel.RelationshipType,
+			&rel.Strength, &rel.Description, &rel.CreatedAt,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan relationship: %w", err)
+		}
+		relationships = append(relationships, rel)
+	}
+
+	// Get context snapshots
+	snapshots, err := r.ListContextSnapshots(ctx, sessionID, 1000, 0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get context snapshots: %w", err)
+	}
+
+	// Get task progress
+	tasks, err := r.ListTaskProgress(ctx, sessionID, "", 1000, 0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get task progress: %w", err)
+	}
+
+	exportData := map[string]interface{}{
+		"session":        session,
+		"memory_entries": memories,
+		"relationships":  relationships,
+		"snapshots":      snapshots,
+		"tasks":          tasks,
+		"exported_at":    time.Now(),
+		"version":        "1.0",
+	}
+
+	return exportData, nil
+}
+
+// ImportSessionData imports session data from JSON format
+func (r *MemoryRepository) ImportSessionData(ctx context.Context, importData map[string]interface{}) (string, error) {
+	// Validate import data structure
+	sessionData, ok := importData["session"].(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("invalid session data in import")
+	}
+
+	// Create new session with imported data
+	session := &models.Session{
+		ID:          fmt.Sprintf("imported_%d", time.Now().UnixNano()),
+		Name:        sessionData["name"].(string),
+		Description: sessionData["description"].(string),
+		TaskType:    sessionData["task_type"].(string),
+		Status:      "active",
+		CreatedAt:   time.Now(),
+		UpdatedAt:   time.Now(),
+	}
+
+	// Create session
+	err := r.CreateSession(ctx, session)
+	if err != nil {
+		return "", fmt.Errorf("failed to create imported session: %w", err)
+	}
+
+	// Import memory entries
+	if memoryEntries, ok := importData["memory_entries"].([]interface{}); ok {
+		for _, entryData := range memoryEntries {
+			entryMap := entryData.(map[string]interface{})
+			req := &models.CreateMemoryEntryRequest{
+				SessionID:   session.ID,
+				Title:       entryMap["title"].(string),
+				Content:     entryMap["content"].(string),
+				ContentType: entryMap["content_type"].(string),
+				Category:    entryMap["category"].(string),
+				Priority:    int(entryMap["priority"].(float64)),
+				Confidence:  entryMap["confidence"].(float64),
+				Source:      entryMap["source"].(string),
+			}
+
+			// Handle tags
+			if tags, ok := entryMap["tags"].([]interface{}); ok {
+				tagStrings := make([]string, len(tags))
+				for i, tag := range tags {
+					tagStrings[i] = tag.(string)
+				}
+				req.Tags = tagStrings
+			}
+
+			_, err := r.CreateMemoryEntry(ctx, req)
+			if err != nil {
+				r.logger.Warn("Failed to import memory entry", "error", err)
+			}
+		}
+	}
+
+	// Import task progress
+	if tasks, ok := importData["tasks"].([]interface{}); ok {
+		for _, taskData := range tasks {
+			taskMap := taskData.(map[string]interface{})
+			_, err := r.CreateTaskProgress(ctx, session.ID,
+				taskMap["task_name"].(string),
+				taskMap["stage"].(string),
+				taskMap["status"].(string),
+				taskMap["notes"].(string),
+				int(taskMap["progress_percentage"].(float64)),
+			)
+			if err != nil {
+				r.logger.Warn("Failed to import task progress", "error", err)
+			}
+		}
+	}
+
+	return session.ID, nil
+}
+
+// GetSecurityTemplates returns predefined templates for common security patterns
+func (r *MemoryRepository) GetSecurityTemplates() map[string]interface{} {
+	templates := map[string]interface{}{
+		"vulnerability_templates": map[string]interface{}{
+			"sql_injection": map[string]interface{}{
+				"title":       "SQL Injection Vulnerability",
+				"content":     "SQL injection vulnerability found in [COMPONENT]. The [PARAMETER] parameter is directly concatenated into SQL queries without proper sanitization, allowing attackers to execute arbitrary SQL commands.",
+				"category":    "vulnerability",
+				"priority":    9,
+				"confidence":  0.9,
+				"tags":        []string{"sql-injection", "injection", "critical", "owasp-top10"},
+				"source":      "security-assessment",
+			},
+			"xss": map[string]interface{}{
+				"title":       "Cross-Site Scripting (XSS) Vulnerability",
+				"content":     "Cross-site scripting vulnerability found in [COMPONENT]. User input is not properly encoded before being displayed, allowing attackers to inject malicious scripts that execute in other users' browsers.",
+				"category":    "vulnerability",
+				"priority":    8,
+				"confidence":  0.85,
+				"tags":        []string{"xss", "injection", "owasp-top10"},
+				"source":      "security-assessment",
+			},
+			"authentication_bypass": map[string]interface{}{
+				"title":       "Authentication Bypass Vulnerability",
+				"content":     "Authentication bypass vulnerability found in [COMPONENT]. The authentication mechanism can be circumvented through [METHOD], allowing unauthorized access to protected resources.",
+				"category":    "vulnerability",
+				"priority":    10,
+				"confidence":  0.95,
+				"tags":        []string{"authentication", "bypass", "critical", "owasp-top10"},
+				"source":      "security-assessment",
+			},
+			"privilege_escalation": map[string]interface{}{
+				"title":       "Privilege Escalation Vulnerability",
+				"content":     "Privilege escalation vulnerability found in [COMPONENT]. Users can elevate their privileges through [METHOD], gaining access to functionality or data they should not have access to.",
+				"category":    "vulnerability",
+				"priority":    9,
+				"confidence":  0.9,
+				"tags":        []string{"privilege-escalation", "authorization", "critical"},
+				"source":      "security-assessment",
+			},
+		},
+		"exploit_templates": map[string]interface{}{
+			"sql_injection_exploit": map[string]interface{}{
+				"title":       "SQL Injection Exploit",
+				"content":     "Exploit for SQL injection vulnerability in [COMPONENT]. Payload: [PAYLOAD]. This exploit can be used to [IMPACT].",
+				"category":    "exploit",
+				"priority":    8,
+				"confidence":  0.9,
+				"tags":        []string{"sql-injection", "exploit", "payload"},
+				"source":      "exploit-development",
+			},
+			"xss_exploit": map[string]interface{}{
+				"title":       "XSS Exploit",
+				"content":     "Exploit for XSS vulnerability in [COMPONENT]. Payload: [PAYLOAD]. This exploit can be used to [IMPACT].",
+				"category":    "exploit",
+				"priority":    7,
+				"confidence":  0.85,
+				"tags":        []string{"xss", "exploit", "payload"},
+				"source":      "exploit-development",
+			},
+		},
+		"technique_templates": map[string]interface{}{
+			"reconnaissance": map[string]interface{}{
+				"title":       "Reconnaissance Technique",
+				"content":     "Reconnaissance technique used to gather information about [TARGET]. Method: [METHOD]. Information gathered: [INFORMATION].",
+				"category":    "technique",
+				"priority":    5,
+				"confidence":  0.8,
+				"tags":        []string{"reconnaissance", "information-gathering"},
+				"source":      "penetration-testing",
+			},
+			"enumeration": map[string]interface{}{
+				"title":       "Enumeration Technique",
+				"content":     "Enumeration technique used to discover [TARGET]. Method: [METHOD]. Results: [RESULTS].",
+				"category":    "technique",
+				"priority":    6,
+				"confidence":  0.8,
+				"tags":        []string{"enumeration", "discovery"},
+				"source":      "penetration-testing",
+			},
+		},
+		"tool_templates": map[string]interface{}{
+			"vulnerability_scanner": map[string]interface{}{
+				"title":       "Vulnerability Scanner Tool",
+				"content":     "Used [TOOL] to scan [TARGET] for vulnerabilities. Configuration: [CONFIG]. Results: [RESULTS].",
+				"category":    "tool",
+				"priority":    6,
+				"confidence":  0.8,
+				"tags":        []string{"vulnerability-scanner", "automated-testing"},
+				"source":      "security-assessment",
+			},
+			"manual_testing": map[string]interface{}{
+				"title":       "Manual Security Testing",
+				"content":     "Performed manual security testing on [TARGET]. Focus area: [AREA]. Methodology: [METHODOLOGY]. Findings: [FINDINGS].",
+				"category":    "tool",
+				"priority":    7,
+				"confidence":  0.9,
+				"tags":        []string{"manual-testing", "security-assessment"},
+				"source":      "security-assessment",
+			},
+		},
+	}
+
+	return templates
+}
+
+// CreateMemoryFromTemplate creates a memory entry from a predefined template
+func (r *MemoryRepository) CreateMemoryFromTemplate(ctx context.Context, sessionID, templateName string, replacements map[string]string) (*models.MemoryEntry, error) {
+	templates := r.GetSecurityTemplates()
+	
+	// Find the template
+	var template map[string]interface{}
+	found := false
+	
+	for _, categoryTemplates := range templates {
+		if categoryMap, ok := categoryTemplates.(map[string]interface{}); ok {
+			if templateData, exists := categoryMap[templateName]; exists {
+				template = templateData.(map[string]interface{})
+				found = true
+				break
+			}
+		}
+	}
+	
+	if !found {
+		return nil, fmt.Errorf("template not found: %s", templateName)
+	}
+	
+	// Apply replacements to title and content
+	title := template["title"].(string)
+	content := template["content"].(string)
+	
+	for placeholder, replacement := range replacements {
+		title = strings.ReplaceAll(title, "["+strings.ToUpper(placeholder)+"]", replacement)
+		content = strings.ReplaceAll(content, "["+strings.ToUpper(placeholder)+"]", replacement)
+	}
+	
+	// Create memory entry request
+	req := &models.CreateMemoryEntryRequest{
+		SessionID:   sessionID,
+		Title:       title,
+		Content:     content,
+		ContentType: "text",
+		Category:    template["category"].(string),
+		Priority:    int(template["priority"].(float64)),
+		Confidence:  template["confidence"].(float64),
+		Source:      template["source"].(string),
+		Tags:        template["tags"].([]string),
+	}
+	
+	return r.CreateMemoryEntry(ctx, req)
+}
+
 // generateMemorySummary generates a summary of relevant memories for the given context
 func (r *MemoryRepository) generateMemorySummary(ctx context.Context, sessionID string, contextData map[string]interface{}) (string, error) {
 	// Get recent high-priority memories

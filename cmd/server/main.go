@@ -572,6 +572,68 @@ func (t *TinyBrainServer) registerTools(s *mcp.Server) {
 		t.handleCheckDuplicates,
 	)
 
+	s.AddTool("export_session_data",
+		"Export all data for a session in JSON format for backup or migration",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"session_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ID of the session to export",
+				},
+			},
+			"required": []string{"session_id"},
+		},
+		t.handleExportSessionData,
+	)
+
+	s.AddTool("import_session_data",
+		"Import session data from JSON format for restoration or migration",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"import_data": map[string]interface{}{
+					"type":        "string",
+					"description": "JSON string containing the session data to import",
+				},
+			},
+			"required": []string{"import_data"},
+		},
+		t.handleImportSessionData,
+	)
+
+	s.AddTool("get_security_templates",
+		"Get predefined templates for common security patterns",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{},
+		},
+		t.handleGetSecurityTemplates,
+	)
+
+	s.AddTool("create_memory_from_template",
+		"Create a memory entry from a predefined security template",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"session_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ID of the session",
+				},
+				"template_name": map[string]interface{}{
+					"type":        "string",
+					"description": "Name of the template to use",
+				},
+				"replacements": map[string]interface{}{
+					"type":        "string",
+					"description": "JSON string containing placeholder replacements",
+				},
+			},
+			"required": []string{"session_id", "template_name"},
+		},
+		t.handleCreateMemoryFromTemplate,
+	)
+
 	s.AddTool("health_check",
 		"Perform a health check on the database and server",
 		map[string]interface{}{
@@ -1001,6 +1063,73 @@ func (t *TinyBrainServer) handleCheckDuplicates(ctx context.Context, params map[
 	}
 
 	return duplicates, nil
+}
+
+func (t *TinyBrainServer) handleExportSessionData(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	sessionID, ok := params["session_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("session_id is required")
+	}
+
+	exportData, err := t.repo.ExportSessionData(ctx, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to export session data: %v", err)
+	}
+
+	return exportData, nil
+}
+
+func (t *TinyBrainServer) handleImportSessionData(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	importDataStr, ok := params["import_data"].(string)
+	if !ok {
+		return nil, fmt.Errorf("import_data is required")
+	}
+
+	var importData map[string]interface{}
+	if err := json.Unmarshal([]byte(importDataStr), &importData); err != nil {
+		return nil, fmt.Errorf("invalid import_data JSON: %v", err)
+	}
+
+	sessionID, err := t.repo.ImportSessionData(ctx, importData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to import session data: %v", err)
+	}
+
+	return map[string]interface{}{
+		"imported_session_id": sessionID,
+		"message":             "Session data imported successfully",
+	}, nil
+}
+
+func (t *TinyBrainServer) handleGetSecurityTemplates(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	templates := t.repo.GetSecurityTemplates()
+	return templates, nil
+}
+
+func (t *TinyBrainServer) handleCreateMemoryFromTemplate(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	sessionID, ok := params["session_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("session_id is required")
+	}
+
+	templateName, ok := params["template_name"].(string)
+	if !ok {
+		return nil, fmt.Errorf("template_name is required")
+	}
+
+	replacements := make(map[string]string)
+	if replacementsStr, ok := params["replacements"].(string); ok && replacementsStr != "" {
+		if err := json.Unmarshal([]byte(replacementsStr), &replacements); err != nil {
+			return nil, fmt.Errorf("invalid replacements JSON: %v", err)
+		}
+	}
+
+	memory, err := t.repo.CreateMemoryFromTemplate(ctx, sessionID, templateName, replacements)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create memory from template: %v", err)
+	}
+
+	return memory, nil
 }
 
 func (t *TinyBrainServer) handleGetDatabaseStats(ctx context.Context, params map[string]interface{}) (interface{}, error) {
