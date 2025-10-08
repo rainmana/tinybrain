@@ -35,13 +35,19 @@ TinyBrain is a comprehensive memory storage system designed specifically for sec
 ### Installation
 
 ```bash
-# Install from source
-go install github.com/rainmana/tinybrain/cmd/server@latest
-
-# Or build locally
+# Method 1: Clone and build locally (recommended)
 git clone https://github.com/rainmana/tinybrain.git
 cd tinybrain
 make install
+
+# Method 2: Install from source (if repository is public)
+go install github.com/rainmana/tinybrain/cmd/server@latest
+
+# Method 3: Build binary directly
+git clone https://github.com/rainmana/tinybrain.git
+cd tinybrain
+go build -o tinybrain cmd/server/main.go
+sudo mv tinybrain /usr/local/bin/
 ```
 
 ### Basic Usage
@@ -52,6 +58,23 @@ tinybrain
 
 # Or with custom database path
 TINYBRAIN_DB_PATH=/path/to/your/memory.db tinybrain
+```
+
+### Troubleshooting Installation
+
+If you encounter issues with `go install`, try these solutions:
+
+```bash
+# If you get authentication errors, use direct clone method
+git clone https://github.com/rainmana/tinybrain.git
+cd tinybrain
+go build -o tinybrain cmd/server/main.go
+
+# If repository is private, ensure you have access
+git config --global url."git@github.com:".insteadOf "https://github.com/"
+
+# For Go module proxy issues, use direct mode
+GOPROXY=direct go install github.com/rainmana/tinybrain/cmd/server@latest
 ```
 
 ### MCP Client Configuration
