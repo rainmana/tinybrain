@@ -1307,6 +1307,306 @@ func (r *MemoryRepository) BatchDeleteMemoryEntries(ctx context.Context, memoryI
 	return nil
 }
 
+// CleanupOldMemories removes memories older than the specified age
+func (r *MemoryRepository) CleanupOldMemories(ctx context.Context, maxAgeDays int, dryRun bool) (int, error) {
+	cutoffDate := time.Now().AddDate(0, 0, -maxAgeDays)
+	
+	query := `
+		SELECT id, title, created_at 
+		FROM memory_entries 
+		WHERE created_at < ? 
+		ORDER BY created_at ASC
+	`
+	
+	rows, err := r.db.QueryContext(ctx, query, cutoffDate)
+	if err != nil {
+		return 0, fmt.Errorf("failed to query old memories: %w", err)
+	}
+	defer rows.Close()
+	
+	var memoryIDs []string
+	var oldMemories []struct {
+		ID        string
+		Title     string
+		CreatedAt time.Time
+	}
+	
+	for rows.Next() {
+		var memory struct {
+			ID        string
+			Title     string
+			CreatedAt time.Time
+		}
+		err := rows.Scan(&memory.ID, &memory.Title, &memory.CreatedAt)
+		if err != nil {
+			return 0, fmt.Errorf("failed to scan memory: %w", err)
+		}
+		memoryIDs = append(memoryIDs, memory.ID)
+		oldMemories = append(oldMemories, memory)
+	}
+	
+	if dryRun {
+		r.logger.Info("Dry run: would delete old memories", 
+			"count", len(memoryIDs), 
+			"max_age_days", maxAgeDays,
+			"cutoff_date", cutoffDate)
+		return len(memoryIDs), nil
+	}
+	
+	if len(memoryIDs) == 0 {
+		return 0, nil
+	}
+	
+	// Delete in batches to avoid large transactions
+	batchSize := 100
+	deletedCount := 0
+	
+	for i := 0; i < len(memoryIDs); i += batchSize {
+		end := i + batchSize
+		if end > len(memoryIDs) {
+			end = len(memoryIDs)
+		}
+		
+		batch := memoryIDs[i:end]
+		err := r.BatchDeleteMemoryEntries(ctx, batch)
+		if err != nil {
+			return deletedCount, fmt.Errorf("failed to delete batch: %w", err)
+		}
+		
+		deletedCount += len(batch)
+	}
+	
+	r.logger.Info("Cleaned up old memories", 
+		"deleted_count", deletedCount, 
+		"max_age_days", maxAgeDays,
+		"cutoff_date", cutoffDate)
+	
+	return deletedCount, nil
+}
+
+// CleanupLowPriorityMemories removes memories with low priority and confidence
+func (r *MemoryRepository) CleanupLowPriorityMemories(ctx context.Context, maxPriority int, maxConfidence float64, dryRun bool) (int, error) {
+	query := `
+		SELECT id, title, priority, confidence, created_at 
+		FROM memory_entries 
+		WHERE priority <= ? AND confidence <= ? 
+		ORDER BY priority ASC, confidence ASC, created_at ASC
+	`
+	
+	rows, err := r.db.QueryContext(ctx, query, maxPriority, maxConfidence)
+	if err != nil {
+		return 0, fmt.Errorf("failed to query low priority memories: %w", err)
+	}
+	defer rows.Close()
+	
+	var memoryIDs []string
+	var lowPriorityMemories []struct {
+		ID        string
+		Title     string
+		Priority  int
+		Confidence float64
+		CreatedAt time.Time
+	}
+	
+	for rows.Next() {
+		var memory struct {
+			ID        string
+			Title     string
+			Priority  int
+			Confidence float64
+			CreatedAt time.Time
+		}
+		err := rows.Scan(&memory.ID, &memory.Title, &memory.Priority, &memory.Confidence, &memory.CreatedAt)
+		if err != nil {
+			return 0, fmt.Errorf("failed to scan memory: %w", err)
+		}
+		memoryIDs = append(memoryIDs, memory.ID)
+		lowPriorityMemories = append(lowPriorityMemories, memory)
+	}
+	
+	if dryRun {
+		r.logger.Info("Dry run: would delete low priority memories", 
+			"count", len(memoryIDs), 
+			"max_priority", maxPriority,
+			"max_confidence", maxConfidence)
+		return len(memoryIDs), nil
+	}
+	
+	if len(memoryIDs) == 0 {
+		return 0, nil
+	}
+	
+	// Delete in batches
+	batchSize := 100
+	deletedCount := 0
+	
+	for i := 0; i < len(memoryIDs); i += batchSize {
+		end := i + batchSize
+		if end > len(memoryIDs) {
+			end = len(memoryIDs)
+		}
+		
+		batch := memoryIDs[i:end]
+		err := r.BatchDeleteMemoryEntries(ctx, batch)
+		if err != nil {
+			return deletedCount, fmt.Errorf("failed to delete batch: %w", err)
+		}
+		
+		deletedCount += len(batch)
+	}
+	
+	r.logger.Info("Cleaned up low priority memories", 
+		"deleted_count", deletedCount, 
+		"max_priority", maxPriority,
+		"max_confidence", maxConfidence)
+	
+	return deletedCount, nil
+}
+
+// CleanupUnusedMemories removes memories that haven't been accessed recently
+func (r *MemoryRepository) CleanupUnusedMemories(ctx context.Context, maxUnusedDays int, dryRun bool) (int, error) {
+	cutoffDate := time.Now().AddDate(0, 0, -maxUnusedDays)
+	
+	query := `
+		SELECT id, title, accessed_at, access_count 
+		FROM memory_entries 
+		WHERE accessed_at < ? AND access_count < 5
+		ORDER BY accessed_at ASC
+	`
+	
+	rows, err := r.db.QueryContext(ctx, query, cutoffDate)
+	if err != nil {
+		return 0, fmt.Errorf("failed to query unused memories: %w", err)
+	}
+	defer rows.Close()
+	
+	var memoryIDs []string
+	var unusedMemories []struct {
+		ID          string
+		Title       string
+		AccessedAt  time.Time
+		AccessCount int
+	}
+	
+	for rows.Next() {
+		var memory struct {
+			ID          string
+			Title       string
+			AccessedAt  time.Time
+			AccessCount int
+		}
+		err := rows.Scan(&memory.ID, &memory.Title, &memory.AccessedAt, &memory.AccessCount)
+		if err != nil {
+			return 0, fmt.Errorf("failed to scan memory: %w", err)
+		}
+		memoryIDs = append(memoryIDs, memory.ID)
+		unusedMemories = append(unusedMemories, memory)
+	}
+	
+	if dryRun {
+		r.logger.Info("Dry run: would delete unused memories", 
+			"count", len(memoryIDs), 
+			"max_unused_days", maxUnusedDays,
+			"cutoff_date", cutoffDate)
+		return len(memoryIDs), nil
+	}
+	
+	if len(memoryIDs) == 0 {
+		return 0, nil
+	}
+	
+	// Delete in batches
+	batchSize := 100
+	deletedCount := 0
+	
+	for i := 0; i < len(memoryIDs); i += batchSize {
+		end := i + batchSize
+		if end > len(memoryIDs) {
+			end = len(memoryIDs)
+		}
+		
+		batch := memoryIDs[i:end]
+		err := r.BatchDeleteMemoryEntries(ctx, batch)
+		if err != nil {
+			return deletedCount, fmt.Errorf("failed to delete batch: %w", err)
+		}
+		
+		deletedCount += len(batch)
+	}
+	
+	r.logger.Info("Cleaned up unused memories", 
+		"deleted_count", deletedCount, 
+		"max_unused_days", maxUnusedDays,
+		"cutoff_date", cutoffDate)
+	
+	return deletedCount, nil
+}
+
+// GetMemoryStats returns statistics about memory usage and aging
+func (r *MemoryRepository) GetMemoryStats(ctx context.Context) (map[string]interface{}, error) {
+	stats := make(map[string]interface{})
+	
+	// Total memories
+	var totalMemories int
+	err := r.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM memory_entries").Scan(&totalMemories)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get total memories: %w", err)
+	}
+	stats["total_memories"] = totalMemories
+	
+	// Memories by age
+	ageQueries := map[string]string{
+		"memories_last_7_days":   "SELECT COUNT(*) FROM memory_entries WHERE created_at > datetime('now', '-7 days')",
+		"memories_last_30_days":  "SELECT COUNT(*) FROM memory_entries WHERE created_at > datetime('now', '-30 days')",
+		"memories_last_90_days":  "SELECT COUNT(*) FROM memory_entries WHERE created_at > datetime('now', '-90 days')",
+		"memories_older_90_days": "SELECT COUNT(*) FROM memory_entries WHERE created_at <= datetime('now', '-90 days')",
+	}
+	
+	for key, query := range ageQueries {
+		var count int
+		err := r.db.QueryRowContext(ctx, query).Scan(&count)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get %s: %w", key, err)
+		}
+		stats[key] = count
+	}
+	
+	// Memories by priority
+	priorityQueries := map[string]string{
+		"high_priority_memories":   "SELECT COUNT(*) FROM memory_entries WHERE priority >= 8",
+		"medium_priority_memories": "SELECT COUNT(*) FROM memory_entries WHERE priority >= 5 AND priority < 8",
+		"low_priority_memories":    "SELECT COUNT(*) FROM memory_entries WHERE priority < 5",
+	}
+	
+	for key, query := range priorityQueries {
+		var count int
+		err := r.db.QueryRowContext(ctx, query).Scan(&count)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get %s: %w", key, err)
+		}
+		stats[key] = count
+	}
+	
+	// Unused memories
+	var unusedMemories int
+	err = r.db.QueryRowContext(ctx, 
+		"SELECT COUNT(*) FROM memory_entries WHERE accessed_at < datetime('now', '-30 days') AND access_count < 5").Scan(&unusedMemories)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get unused memories: %w", err)
+	}
+	stats["unused_memories"] = unusedMemories
+	
+	// Average access count
+	var avgAccessCount float64
+	err = r.db.QueryRowContext(ctx, "SELECT AVG(access_count) FROM memory_entries").Scan(&avgAccessCount)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get average access count: %w", err)
+	}
+	stats["average_access_count"] = avgAccessCount
+	
+	return stats, nil
+}
+
 // generateMemorySummary generates a summary of relevant memories for the given context
 func (r *MemoryRepository) generateMemorySummary(ctx context.Context, sessionID string, contextData map[string]interface{}) (string, error) {
 	// Get recent high-priority memories

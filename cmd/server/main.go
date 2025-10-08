@@ -683,6 +683,76 @@ func (t *TinyBrainServer) registerTools(s *mcp.Server) {
 		t.handleBatchDeleteMemories,
 	)
 
+	s.AddTool("cleanup_old_memories",
+		"Remove memories older than specified age with optional dry run",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"max_age_days": map[string]interface{}{
+					"type":        "number",
+					"description": "Maximum age in days for memories to keep",
+				},
+				"dry_run": map[string]interface{}{
+					"type":        "boolean",
+					"description": "If true, only show what would be deleted without actually deleting",
+				},
+			},
+			"required": []string{"max_age_days"},
+		},
+		t.handleCleanupOldMemories,
+	)
+
+	s.AddTool("cleanup_low_priority_memories",
+		"Remove memories with low priority and confidence scores",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"max_priority": map[string]interface{}{
+					"type":        "number",
+					"description": "Maximum priority level to consider for deletion (0-10)",
+				},
+				"max_confidence": map[string]interface{}{
+					"type":        "number",
+					"description": "Maximum confidence level to consider for deletion (0.0-1.0)",
+				},
+				"dry_run": map[string]interface{}{
+					"type":        "boolean",
+					"description": "If true, only show what would be deleted without actually deleting",
+				},
+			},
+			"required": []string{"max_priority", "max_confidence"},
+		},
+		t.handleCleanupLowPriorityMemories,
+	)
+
+	s.AddTool("cleanup_unused_memories",
+		"Remove memories that haven't been accessed recently",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"max_unused_days": map[string]interface{}{
+					"type":        "number",
+					"description": "Maximum days since last access to consider for deletion",
+				},
+				"dry_run": map[string]interface{}{
+					"type":        "boolean",
+					"description": "If true, only show what would be deleted without actually deleting",
+				},
+			},
+			"required": []string{"max_unused_days"},
+		},
+		t.handleCleanupUnusedMemories,
+	)
+
+	s.AddTool("get_memory_stats",
+		"Get comprehensive statistics about memory usage and aging",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{},
+		},
+		t.handleGetMemoryStats,
+	)
+
 	s.AddTool("health_check",
 		"Perform a health check on the database and server",
 		map[string]interface{}{
@@ -1250,6 +1320,93 @@ func (t *TinyBrainServer) handleBatchDeleteMemories(ctx context.Context, params 
 		"deleted_count": len(memoryIDs),
 		"message":       "Memory entries deleted successfully",
 	}, nil
+}
+
+func (t *TinyBrainServer) handleCleanupOldMemories(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	maxAgeDays, ok := params["max_age_days"].(float64)
+	if !ok {
+		return nil, fmt.Errorf("max_age_days is required")
+	}
+
+	dryRun := false
+	if dryRunVal, ok := params["dry_run"].(bool); ok {
+		dryRun = dryRunVal
+	}
+
+	deletedCount, err := t.repo.CleanupOldMemories(ctx, int(maxAgeDays), dryRun)
+	if err != nil {
+		return nil, fmt.Errorf("failed to cleanup old memories: %v", err)
+	}
+
+	return map[string]interface{}{
+		"deleted_count": deletedCount,
+		"max_age_days":  int(maxAgeDays),
+		"dry_run":       dryRun,
+		"message":       fmt.Sprintf("Cleaned up %d old memories", deletedCount),
+	}, nil
+}
+
+func (t *TinyBrainServer) handleCleanupLowPriorityMemories(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	maxPriority, ok := params["max_priority"].(float64)
+	if !ok {
+		return nil, fmt.Errorf("max_priority is required")
+	}
+
+	maxConfidence, ok := params["max_confidence"].(float64)
+	if !ok {
+		return nil, fmt.Errorf("max_confidence is required")
+	}
+
+	dryRun := false
+	if dryRunVal, ok := params["dry_run"].(bool); ok {
+		dryRun = dryRunVal
+	}
+
+	deletedCount, err := t.repo.CleanupLowPriorityMemories(ctx, int(maxPriority), maxConfidence, dryRun)
+	if err != nil {
+		return nil, fmt.Errorf("failed to cleanup low priority memories: %v", err)
+	}
+
+	return map[string]interface{}{
+		"deleted_count":  deletedCount,
+		"max_priority":   int(maxPriority),
+		"max_confidence": maxConfidence,
+		"dry_run":        dryRun,
+		"message":        fmt.Sprintf("Cleaned up %d low priority memories", deletedCount),
+	}, nil
+}
+
+func (t *TinyBrainServer) handleCleanupUnusedMemories(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	maxUnusedDays, ok := params["max_unused_days"].(float64)
+	if !ok {
+		return nil, fmt.Errorf("max_unused_days is required")
+	}
+
+	dryRun := false
+	if dryRunVal, ok := params["dry_run"].(bool); ok {
+		dryRun = dryRunVal
+	}
+
+	deletedCount, err := t.repo.CleanupUnusedMemories(ctx, int(maxUnusedDays), dryRun)
+	if err != nil {
+		return nil, fmt.Errorf("failed to cleanup unused memories: %v", err)
+	}
+
+	return map[string]interface{}{
+		"deleted_count":    deletedCount,
+		"max_unused_days":  int(maxUnusedDays),
+		"dry_run":          dryRun,
+		"message":          fmt.Sprintf("Cleaned up %d unused memories", deletedCount),
+	}, nil
+}
+
+func (t *TinyBrainServer) handleGetMemoryStats(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	stats, err := t.repo.GetMemoryStats(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get memory stats: %v", err)
+	}
+
+	return stats, nil
 }
 
 func (t *TinyBrainServer) handleGetDatabaseStats(ctx context.Context, params map[string]interface{}) (interface{}, error) {
