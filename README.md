@@ -11,6 +11,7 @@ TinyBrain is a comprehensive memory storage system designed specifically for sec
 - **Priority & Confidence Tracking**: 0-10 priority levels and 0.0-1.0 confidence scores
 - **Relationship Mapping**: Track dependencies, causes, mitigations, and exploit chains
 - **Task Progress Tracking**: Multi-stage security task management
+- **Standards Compliance**: Aligned with OWASP, CWE, NIST, and ISO security standards
 
 ### Intelligent Memory Management
 - **Context-Aware Storage**: Automatically categorizes and prioritizes information
@@ -103,6 +104,40 @@ TinyBrain provides a comprehensive set of 40 MCP tools for complete LLM memory m
 
 ### System Monitoring (1 tool)
 - `health_check` - Perform system health checks
+
+## 🛡️ Security Standards & Source Attribution
+
+### **Standards Compliance**
+TinyBrain's security patterns and vulnerability datasets are aligned with industry-standard security frameworks:
+
+- **[OWASP Top 10 2021](https://owasp.org/Top10/)** - Web Application Security Risks
+- **[CWE (Common Weakness Enumeration)](https://cwe.mitre.org/)** - Software Weakness Classification
+- **[NIST SP 800-115](https://csrc.nist.gov/publications/detail/sp/800-115/final)** - Technical Guide to Information Security Testing
+- **[ISO 27001](https://www.iso.org/isoiec-27001-information-security.html)** - Information Security Management Systems
+- **[PTES (Penetration Testing Execution Standard)](http://www.pentest-standard.org/)** - Penetration Testing Methodology
+
+### **Source Attribution**
+Our security patterns and vulnerability datasets are based on authoritative sources:
+
+- **[OWASP Code Review Guide](https://github.com/OWASP/www-project-code-review-guide)** - Comprehensive secure code review methodology
+- **[OWASP Secure Coding Dojo](https://owasp.org/SecureCodingDojo/codereview101/)** - Interactive security code review training
+- **[OWASP Testing Guide](https://owasp.org/www-project-web-security-testing-guide/)** - Web application security testing methodology
+- **[SANS Top 25 CWE](https://cwe.mitre.org/top25/)** - Most dangerous software errors
+- **[NIST Cybersecurity Framework](https://www.nist.gov/cyberframework)** - Cybersecurity risk management
+
+### **Multi-Language Coverage**
+Our security patterns cover 10 major programming languages with language-specific vulnerability patterns:
+
+- **JavaScript/Node.js** - Web application security patterns
+- **Python** - Backend and automation security patterns  
+- **Java** - Enterprise application security patterns
+- **C#/.NET** - Microsoft ecosystem security patterns
+- **PHP** - Web application security patterns
+- **Ruby** - Web framework security patterns
+- **Go** - System and API security patterns
+- **C/C++** - System-level security patterns
+- **TypeScript** - Type-safe web application patterns
+- **Rust** - Memory-safe system programming patterns
 
 ## 🚀 Quick Start
 
@@ -370,6 +405,28 @@ The SQLite database is configured with:
 - Full-text search enabled
 - Optimized pragma settings
 
+## 🛡️ Security Datasets & Templates
+
+### **Comprehensive Security Patterns**
+- **[Security Code Review Dataset](SECURITY_CODE_REVIEW_DATASET.md)** - OWASP Top 10 2021 patterns, CWE vulnerabilities, and exploitation techniques
+- **[Multi-Language Security Patterns](MULTI_LANGUAGE_SECURITY_PATTERNS.md)** - Language-specific vulnerability patterns for 10 programming languages
+- **[TinyBrain Security Templates](TINYBRAIN_SECURITY_TEMPLATES.md)** - Pre-configured memory templates for consistent security assessment storage
+
+### **AI Assistant Configurations**
+- **[Cursor Rules](.cursorrules)** - Security assessment rules for Cursor AI assistant
+- **[Cline Rules](.clinerules)** - Code review and exploitation framework for Cline
+- **[Roo Mode](.roo-mode)** - Penetration testing configuration for Roo AI assistant
+- **[User Configuration Template](.cursorrules.user-template)** - Customizable user configuration template
+
+### **Standards-Based Approach**
+All security patterns are derived from authoritative sources and aligned with industry standards:
+
+- **OWASP Top 10 2021** - Based on [OWASP Top 10](https://owasp.org/Top10/) web application security risks
+- **CWE Patterns** - Derived from [Common Weakness Enumeration](https://cwe.mitre.org/) software weakness classification
+- **Code Review Standards** - Aligned with [OWASP Code Review Guide](https://github.com/OWASP/www-project-code-review-guide)
+- **Training Integration** - Compatible with [OWASP Secure Coding Dojo](https://owasp.org/SecureCodingDojo/codereview101/)
+- **Testing Methodology** - Follows [NIST SP 800-115](https://csrc.nist.gov/publications/detail/sp/800-115/final) security testing guidelines
+
 ## 🤝 Contributing
 
 1. Fork the repository
@@ -401,9 +458,18 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 🙏 Acknowledgments
 
+### **Technical Dependencies**
 - [mcp-go](https://github.com/mark3labs/mcp-go) for MCP server framework
 - [go-sqlite3](https://github.com/mattn/go-sqlite3) for SQLite driver
 - [charmbracelet/log](https://github.com/charmbracelet/log) for structured logging
+
+### **Security Standards & Sources**
+- [OWASP](https://owasp.org/) for security standards and vulnerability classifications
+- [OWASP Code Review Guide](https://github.com/OWASP/www-project-code-review-guide) for secure code review methodology
+- [OWASP Secure Coding Dojo](https://owasp.org/SecureCodingDojo/codereview101/) for interactive security training
+- [CWE (Common Weakness Enumeration)](https://cwe.mitre.org/) for software weakness classification
+- [NIST](https://www.nist.gov/) for cybersecurity frameworks and testing guidelines
+- [SANS](https://www.sans.org/) for security research and training materials
 
 ## 📈 Roadmap
 
