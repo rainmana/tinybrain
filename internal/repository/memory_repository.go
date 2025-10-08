@@ -1093,17 +1093,29 @@ func (r *MemoryRepository) CreateMemoryFromTemplate(ctx context.Context, session
 		content = strings.ReplaceAll(content, "["+strings.ToUpper(placeholder)+"]", replacement)
 	}
 	
-	// Create memory entry request
+	// Create memory entry request with proper type handling
 	req := &models.CreateMemoryEntryRequest{
 		SessionID:   sessionID,
 		Title:       title,
 		Content:     content,
 		ContentType: "text",
 		Category:    template["category"].(string),
-		Priority:    int(template["priority"].(float64)),
-		Confidence:  template["confidence"].(float64),
 		Source:      template["source"].(string),
 		Tags:        template["tags"].([]string),
+	}
+
+	// Handle priority (could be int or float64)
+	if priority, ok := template["priority"].(float64); ok {
+		req.Priority = int(priority)
+	} else if priority, ok := template["priority"].(int); ok {
+		req.Priority = priority
+	}
+
+	// Handle confidence (could be int or float64)
+	if confidence, ok := template["confidence"].(float64); ok {
+		req.Confidence = confidence
+	} else if confidence, ok := template["confidence"].(int); ok {
+		req.Confidence = float64(confidence)
 	}
 	
 	return r.CreateMemoryEntry(ctx, req)
