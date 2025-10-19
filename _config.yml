@@ -1,0 +1,88 @@
+# TinyBrain Documentation Site Configuration
+# GitHub Pages with Minimal Jekyll Theme
+
+# Site Settings
+title: TinyBrain
+description: Security-focused LLM memory storage with intelligence gathering, reverse engineering, and MITRE ATT&CK integration
+url: "https://rainmana.github.io"
+baseurl: "/tinybrain"
+
+# Theme Configuration
+theme: jekyll-theme-minimal
+
+# Build Settings
+markdown: kramdown
+highlighter: rouge
+kramdown:
+  input: GFM
+  syntax_highlighter: rouge
+
+# Navigation
+navigation:
+  - title: Home
+    url: /
+  - title: Getting Started
+    url: /getting-started/
+  - title: Core Features
+    url: /core-features/
+  - title: Intelligence & Reconnaissance
+    url: /intelligence/
+  - title: Reverse Engineering
+    url: /reverse-engineering/
+  - title: Security Patterns
+    url: /security-patterns/
+  - title: Integration
+    url: /integration/
+  - title: API Reference
+    url: /api-reference/
+  - title: Contributing
+    url: /contributing/
+
+# Collections
+collections:
+  docs:
+    output: true
+    permalink: /:collection/:name/
+
+# Defaults
+defaults:
+  - scope:
+      path: ""
+      type: "pages"
+    values:
+      layout: "default"
+  - scope:
+      path: ""
+      type: "docs"
+    values:
+      layout: "default"
+
+# Plugins
+plugins:
+  - jekyll-feed
+  - jekyll-sitemap
+  - jekyll-seo-tag
+
+# Exclude files
+exclude:
+  - README.md
+  - LICENSE
+  - Dockerfile
+  - Makefile
+  - go.mod
+  - go.sum
+  - "*.go"
+  - "*.test"
+  - "*.exe"
+  - "*.db"
+  - "*.log"
+  - test_*
+  - wiki-migration/
+  - internal/
+  - cmd/
+  - examples/
+
+# Include files
+include:
+  - _pages
+  - _docs
