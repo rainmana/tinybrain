@@ -7,8 +7,8 @@ description: Security-focused LLM memory storage with intelligence gathering, re
 url: "https://rainmana.github.io"
 baseurl: "/tinybrain"
 
-# Theme Configuration
-theme: jekyll-theme-minimal
+# Custom Theme - No external theme
+# theme: minima
 
 # Override theme layout
 layout: default
