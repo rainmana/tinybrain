@@ -10,6 +10,8 @@ baseurl: "/tinybrain"
 # Theme Configuration
 theme: jekyll-theme-minimal
 
+# Custom Layout
+
 # Build Settings
 markdown: kramdown
 highlighter: rouge

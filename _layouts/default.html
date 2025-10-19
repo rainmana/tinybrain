@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="{{ page.lang | default: site.lang | default: 'en' }}">
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <title>{% if page.title %}{{ page.title | escape }}{% else %}{{ site.title | escape }}{% endif %}</title>
+  <meta name="description" content="{% if page.excerpt %}{{ page.excerpt | strip_html | strip_newlines | truncate: 160 }}{% else %}{{ site.description }}{% endif %}">
+
+  <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
+  <link rel="canonical" href="{{ page.url | replace:'index.html','' | relative_url }}">
+  <link rel="alternate" type="application/rss+xml" title="{{ site.title | escape }}" href="{{ '/feed.xml' | relative_url }}">
+
+  <style>
+    .container {
+      display: flex;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .sidebar {
+      width: 250px;
+      flex-shrink: 0;
+      margin-right: 30px;
+      padding-right: 20px;
+      border-right: 1px solid #e1e4e8;
+    }
+    
+    .main-content {
+      flex: 1;
+      min-width: 0;
+    }
+    
+    .sidebar h3 {
+      margin-top: 0;
+      margin-bottom: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      color: #24292e;
+    }
+    
+    .sidebar ul {
+      list-style: none;
+      padding: 0;
+      margin: 0 0 20px 0;
+    }
+    
+    .sidebar li {
+      margin-bottom: 5px;
+    }
+    
+    .sidebar a {
+      display: block;
+      padding: 5px 10px;
+      color: #586069;
+      text-decoration: none;
+      border-radius: 3px;
+      font-size: 14px;
+    }
+    
+    .sidebar a:hover {
+      background-color: #f6f8fa;
+      color: #0366d6;
+    }
+    
+    .sidebar a.active {
+      background-color: #0366d6;
+      color: white;
+    }
+    
+    .sidebar .section {
+      margin-bottom: 30px;
+    }
+    
+    .sidebar .section-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #24292e;
+      margin-bottom: 15px;
+      padding-bottom: 5px;
+      border-bottom: 2px solid #e1e4e8;
+    }
+    
+    @media (max-width: 768px) {
+      .container {
+        flex-direction: column;
+      }
+      
+      .sidebar {
+        width: 100%;
+        margin-right: 0;
+        margin-bottom: 20px;
+        padding-right: 0;
+        border-right: none;
+        border-bottom: 1px solid #e1e4e8;
+        padding-bottom: 20px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <nav class="sidebar">
+      <div class="section">
+        <div class="section-title">Getting Started</div>
+        <ul>
+          <li><a href="{{ '/getting-started/#installation' | relative_url }}">Installation</a></li>
+          <li><a href="{{ '/getting-started/#basic-usage' | relative_url }}">Basic Usage</a></li>
+          <li><a href="{{ '/getting-started/#configuration' | relative_url }}">Configuration</a></li>
+        </ul>
+      </div>
+      
+      <div class="section">
+        <div class="section-title">Core Features</div>
+        <ul>
+          <li><a href="{{ '/core-features/#memory-management' | relative_url }}">Memory Management</a></li>
+          <li><a href="{{ '/core-features/#session-management' | relative_url }}">Session Management</a></li>
+          <li><a href="{{ '/core-features/#search-capabilities' | relative_url }}">Search Capabilities</a></li>
+          <li><a href="{{ '/advanced-features/' | relative_url }}">Advanced Features</a></li>
+        </ul>
+      </div>
+      
+      <div class="section">
+        <div class="section-title">Intelligence & Security</div>
+        <ul>
+          <li><a href="{{ '/intelligence/#intelligence-types' | relative_url }}">Intelligence Gathering</a></li>
+          <li><a href="{{ '/intelligence/#mitre-attack-integration' | relative_url }}">MITRE ATT&CK Integration</a></li>
+          <li><a href="{{ '/reverse-engineering/' | relative_url }}">Reverse Engineering</a></li>
+          <li><a href="{{ '/security-patterns/' | relative_url }}">Security Patterns</a></li>
+        </ul>
+      </div>
+      
+      <div class="section">
+        <div class="section-title">Integration & Development</div>
+        <ul>
+          <li><a href="{{ '/ai-integration/' | relative_url }}">AI Integration</a></li>
+          <li><a href="{{ '/authorization/' | relative_url }}">Authorization</a></li>
+          <li><a href="{{ '/integration/' | relative_url }}">General Integration</a></li>
+        </ul>
+      </div>
+      
+      <div class="section">
+        <div class="section-title">Technical Reference</div>
+        <ul>
+          <li><a href="{{ '/api-reference/' | relative_url }}">API Reference</a></li>
+          <li><a href="{{ '/contributing/' | relative_url }}">Contributing</a></li>
+        </ul>
+      </div>
+    </nav>
+    
+    <main class="main-content">
+      {{ content }}
+    </main>
+  </div>
+
+  <script>
+    // Add active class to current page links
+    document.addEventListener('DOMContentLoaded', function() {
+      const currentPath = window.location.pathname;
+      const links = document.querySelectorAll('.sidebar a');
+      
+      links.forEach(function(link) {
+        const href = link.getAttribute('href');
+        if (href && currentPath.includes(href.replace('#', '').replace(/\//g, ''))) {
+          link.classList.add('active');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

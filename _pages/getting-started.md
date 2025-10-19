@@ -6,7 +6,7 @@ permalink: /getting-started/
 
 # Getting Started
 
-## Installation
+## Installation {#installation}
 
 ### From Source
 ```bash
@@ -22,7 +22,7 @@ docker run -p 8080:8080 rainmana/tinybrain
 ### Pre-built Binaries
 Download from [Releases](https://github.com/rainmana/tinybrain/releases)
 
-## Basic Usage
+## Basic Usage {#basic-usage}
 
 ### 1. Start the Server
 ```bash
@@ -54,7 +54,7 @@ curl -X POST http://localhost:8080/memory \
   }'
 ```
 
-## Configuration
+## Configuration {#configuration}
 
 ### Basic Configuration
 Create a `config.json` file:

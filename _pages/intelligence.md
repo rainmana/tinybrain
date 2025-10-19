@@ -8,7 +8,7 @@ permalink: /intelligence/
 
 TinyBrain provides comprehensive intelligence gathering and reconnaissance capabilities for security professionals.
 
-## Intelligence Types
+## Intelligence Types {#intelligence-types}
 
 ### OSINT (Open Source Intelligence)
 - **Social Media Analysis**: Monitor social platforms for threat intelligence
@@ -66,7 +66,7 @@ TinyBrain provides comprehensive intelligence gathering and reconnaissance capab
 - **Incident Intelligence**: Security incident analysis
 - **Cyber Forensics**: Digital forensics analysis
 
-## MITRE ATT&CK Integration
+## MITRE ATT&CK Integration {#mitre-attack-integration}
 
 ### Enterprise Tactics
 - **TA0001 - Initial Access**: Initial access techniques

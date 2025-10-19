@@ -6,7 +6,7 @@ permalink: /core-features/
 
 # Core Features
 
-## Memory Management
+## Memory Management {#memory-management}
 
 TinyBrain provides sophisticated memory management capabilities designed for security professionals:
 
@@ -24,7 +24,7 @@ TinyBrain provides sophisticated memory management capabilities designed for sec
 - **Delete**: Secure deletion with audit trails
 - **Archive**: Long-term storage for completed assessments
 
-## Session Management
+## Session Management {#session-management}
 
 ### Session Types
 - **Security Review**: Code review and vulnerability assessment
@@ -42,7 +42,7 @@ TinyBrain provides sophisticated memory management capabilities designed for sec
 - **Metadata Storage**: Rich metadata for session context
 - **Collaboration**: Share sessions with team members
 
-## Search Capabilities
+## Search Capabilities {#search-capabilities}
 
 ### Search Types
 - **Full-text Search**: Fast text-based searching
