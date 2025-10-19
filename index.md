@@ -4,7 +4,7 @@ title: TinyBrain
 description: Security-focused LLM memory storage with intelligence gathering, reverse engineering, and MITRE ATT&CK integration
 ---
 
-<!-- Force rebuild -->
+<!-- Force rebuild - Dark theme test -->
 
 # TinyBrain
 
