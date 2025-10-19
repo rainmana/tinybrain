@@ -10,6 +10,9 @@ baseurl: "/tinybrain"
 # Theme Configuration
 theme: jekyll-theme-minimal
 
+# Override theme layout
+layout: default
+
 # Custom Layout
 
 # Build Settings
