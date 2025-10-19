@@ -21,16 +21,24 @@ kramdown:
 navigation:
   - title: Home
     url: /
+  - title: Documentation
+    url: /documentation/
   - title: Getting Started
     url: /getting-started/
   - title: Core Features
     url: /core-features/
+  - title: Advanced Features
+    url: /advanced-features/
   - title: Intelligence & Reconnaissance
     url: /intelligence/
   - title: Reverse Engineering
     url: /reverse-engineering/
   - title: Security Patterns
     url: /security-patterns/
+  - title: AI Integration
+    url: /ai-integration/
+  - title: Authorization
+    url: /authorization/
   - title: Integration
     url: /integration/
   - title: API Reference

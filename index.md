@@ -44,12 +44,18 @@ docker run -p 8080:8080 tinybrain
 
 ## 📚 Documentation
 
+### 📖 **[Complete Documentation](documentation/)** - Comprehensive documentation index
+
+**Quick Access:**
 - [Getting Started](getting-started/) - Installation and basic usage
 - [Core Features](core-features/) - Memory management, sessions, and search
+- [Advanced Features](advanced-features/) - Advanced memory management and pattern recognition
 - [Intelligence & Reconnaissance](intelligence/) - OSINT, HUMINT, SIGINT, and more
 - [Reverse Engineering](reverse-engineering/) - Malware analysis and vulnerability research
 - [Security Patterns](security-patterns/) - CWE, OWASP, and multi-language patterns
-- [Integration](integration/) - AI assistant integration and development setup
+- [AI Integration](ai-integration/) - AI assistant integration and development setup
+- [Authorization](authorization/) - Access control and authorization patterns
+- [Integration](integration/) - General integration capabilities and tools
 - [API Reference](api-reference/) - Complete API documentation
 
 ## 🛠️ Installation
