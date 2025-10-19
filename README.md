@@ -1,19 +1,52 @@
 # TinyBrain 🧠
 
-**Security-Focused LLM Memory Storage MCP Server**
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Go Version](https://img.shields.io/badge/Go-1.21+-blue.svg)](https://golang.org/)
+[![MCP Protocol](https://img.shields.io/badge/MCP-Protocol-green.svg)](https://modelcontextprotocol.io/)
+[![Security Focused](https://img.shields.io/badge/Security-Focused-red.svg)](https://github.com/rainmana/tinybrain)
 
-TinyBrain is a comprehensive memory storage system designed specifically for security-focused tasks like security code review, penetration testing, and exploit development. It provides an LLM with persistent, intelligent memory capabilities through the Model Context Protocol (MCP).
+**Security-Focused LLM Memory Storage with Intelligence Gathering, Reverse Engineering, and MITRE ATT&CK Integration**
 
-## 🎯 Key Features
+TinyBrain is a comprehensive memory storage system designed specifically for security professionals, penetration testers, and AI assistants working on offensive security tasks. It provides intelligent memory management, pattern recognition, and comprehensive intelligence gathering capabilities through the Model Context Protocol (MCP).
 
-### Security-Focused Design
-- **Specialized Categories**: Vulnerability, exploit, payload, technique, tool, reference, context, hypothesis, evidence, recommendation
-- **Priority & Confidence Tracking**: 0-10 priority levels and 0.0-1.0 confidence scores
-- **Relationship Mapping**: Track dependencies, causes, mitigations, and exploit chains
-- **Task Progress Tracking**: Multi-stage security task management
-- **Standards Compliance**: Aligned with OWASP, CWE, NIST, and ISO security standards
+📖 **[View Complete Documentation](https://rainmana.github.io/tinybrain/)** | 🐛 [Report Issues](https://github.com/rainmana/tinybrain/issues) | 💬 [Discussions](https://github.com/rainmana/tinybrain/discussions)
 
-### Intelligent Memory Management
+## ✨ Key Features
+
+### 🧠 Intelligence Gathering
+- **OSINT**: Open Source Intelligence collection and analysis
+- **HUMINT**: Human Intelligence gathering and social engineering assessment
+- **SIGINT**: Signals Intelligence and communications analysis
+- **GEOINT**: Geospatial Intelligence and location-based analysis
+- **MASINT**: Measurement and Signature Intelligence
+- **TECHINT**: Technical Intelligence and technology assessment
+- **FININT**: Financial Intelligence and cryptocurrency tracking
+- **CYBINT**: Cyber Intelligence and threat analysis
+
+### 🔍 Reverse Engineering
+- **Malware Analysis**: Static and dynamic malware analysis capabilities
+- **Binary Analysis**: PE, ELF, Mach-O file format analysis
+- **Vulnerability Research**: Fuzzing, exploit development, and vulnerability analysis
+- **Protocol Analysis**: Network and application protocol reverse engineering
+- **Code Analysis**: Source code and assembly analysis tools
+
+### 🎯 MITRE ATT&CK Integration
+- **Complete Framework**: All 14 Enterprise tactics and 200+ techniques
+- **TTP Mapping**: Map findings to specific tactics, techniques, and procedures
+- **Attack Chain Analysis**: Complete attack chain mapping and analysis
+- **Threat Hunting**: Hunt for specific TTPs and attack patterns
+- **Campaign Tracking**: Track attack campaigns and threat actor activities
+
+### 🛡️ Security Patterns & Standards
+- **CWE Integration**: Common Weakness Enumeration patterns and classifications
+- **OWASP Compliance**: OWASP Top 10 2021 and testing guide integration
+- **Multi-Language Support**: Security patterns for 10+ programming languages
+- **Authorization Templates**: RBAC, ABAC, and DAC access control patterns
+- **Standards Compliance**: NIST, ISO 27001, PTES, and industry standards
+
+### 📊 Memory Management
+- **30+ Memory Categories**: Comprehensive categorization for intelligence, reconnaissance, and analysis data
+- **Intelligence Objects**: Threat actors, attack campaigns, IOCs, TTPs, patterns, and correlations
 - **Context-Aware Storage**: Automatically categorizes and prioritizes information
 - **Advanced Search**: Semantic, exact, fuzzy, tag-based, and relationship-based search
 - **Access Tracking**: Monitors which memories are most relevant and frequently accessed
@@ -144,29 +177,71 @@ Our security patterns cover 10 major programming languages with language-specifi
 ### Installation
 
 ```bash
-# Method 1: Clone and build locally (recommended)
-git clone https://github.com/rainmana/tinybrain.git
-cd tinybrain
-make install
-
-# Method 2: Install from source (if repository is public)
+# Method 1: Install from source (recommended)
 go install github.com/rainmana/tinybrain/cmd/server@latest
 
-# Method 3: Build binary directly
+# Method 2: Clone and build locally
 git clone https://github.com/rainmana/tinybrain.git
 cd tinybrain
-go build -o tinybrain cmd/server/main.go
-sudo mv tinybrain /usr/local/bin/
+make build
+
+# Method 3: Docker
+docker pull rainmana/tinybrain:latest
+docker run -p 8080:8080 rainmana/tinybrain
 ```
+
+### Pre-built Binaries
+Download from [Releases](https://github.com/rainmana/tinybrain/releases)
 
 ### Basic Usage
 
 ```bash
 # Start the server (uses ~/.tinybrain/memory.db by default)
-tinybrain
+tinybrain-server
 
 # Or with custom database path
-TINYBRAIN_DB_PATH=/path/to/your/memory.db tinybrain
+TINYBRAIN_DB_PATH=/path/to/your/memory.db tinybrain-server
+```
+
+### Intelligence Gathering Example
+
+```go
+// Create an OSINT intelligence session
+session := &Session{
+    Name: "OSINT Intelligence Gathering",
+    TaskType: "intelligence_analysis",
+    IntelligenceType: "osint",
+    Classification: "unclassified",
+    ThreatLevel: "medium",
+}
+
+// Store intelligence findings
+finding := &IntelligenceFinding{
+    Title: "Social Media Intelligence",
+    IntelligenceType: "osint",
+    ThreatLevel: "medium",
+    MITRETactic: "TA0001",
+    MITRETechnique: "T1591",
+    KillChainPhase: "reconnaissance",
+}
+```
+
+### MCP Integration
+
+```json
+{
+  "jsonrpc": "2.0",
+  "id": 1,
+  "method": "tools/call",
+  "params": {
+    "name": "mcp_tinybrain-mcp-server_create_session",
+    "arguments": {
+      "name": "Security Assessment",
+      "task_type": "penetration_test",
+      "intelligence_type": "osint"
+    }
+  }
+}
 ```
 
 ### Troubleshooting Installation
@@ -204,24 +279,29 @@ Add to your MCP client configuration (e.g., Claude Desktop):
 }
 ```
 
-## 📚 API Reference
+## 📚 Documentation
 
-### Session Management
+For complete documentation, API reference, and detailed guides, visit our comprehensive documentation site:
 
-#### Create Session
-```json
-{
-  "name": "create_session",
-  "arguments": {
-    "name": "Web App Security Review",
-    "description": "Comprehensive security review of web application",
-    "task_type": "security_review",
-    "metadata": "{\"target\": \"myapp.com\", \"scope\": \"web-application\"}"
-  }
-}
-```
+### 📖 **[Complete Documentation](https://rainmana.github.io/tinybrain/)**
 
-**Task Types**: `security_review`, `penetration_test`, `exploit_dev`, `vulnerability_analysis`, `threat_modeling`, `incident_response`, `general`
+The documentation includes:
+- **[Getting Started](https://rainmana.github.io/tinybrain/getting-started/)** - Installation and basic usage
+- **[Core Features](https://rainmana.github.io/tinybrain/core-features/)** - Memory management, sessions, and search
+- **[Intelligence & Reconnaissance](https://rainmana.github.io/tinybrain/intelligence/)** - OSINT, HUMINT, SIGINT, and more
+- **[Reverse Engineering](https://rainmana.github.io/tinybrain/reverse-engineering/)** - Malware analysis and vulnerability research
+- **[Security Patterns](https://rainmana.github.io/tinybrain/security-patterns/)** - CWE, OWASP, and multi-language patterns
+- **[Integration](https://rainmana.github.io/tinybrain/integration/)** - AI assistant integration and development setup
+- **[API Reference](https://rainmana.github.io/tinybrain/api-reference/)** - Complete MCP tools and REST API documentation
+- **[Contributing](https://rainmana.github.io/tinybrain/contributing/)** - Guidelines for contributors
+
+### Quick API Reference
+
+#### Session Management
+
+**Task Types**: `security_review`, `penetration_test`, `exploit_dev`, `vulnerability_analysis`, `threat_modeling`, `incident_response`, `intelligence_analysis`
+
+**Intelligence Types**: `osint`, `humint`, `sigint`, `geoint`, `masint`, `techint`, `finint`, `cybint`
 
 #### List Sessions
 ```json
@@ -320,30 +400,21 @@ Add to your MCP client configuration (e.g., Claude Desktop):
 
 ## 🏗️ Architecture
 
-### Database Schema
-
-```sql
--- Core tables
-sessions              -- LLM interaction sessions
-memory_entries        -- Individual pieces of information
-relationships         -- Links between memory entries
-context_snapshots     -- Saved context states
-search_history        -- Search query tracking
-task_progress         -- Multi-stage task progress
-
--- Views and indexes
-memory_entries_fts    -- Full-text search virtual table
-memory_entries_with_session  -- Enhanced memory view
-relationship_network  -- Relationship analysis view
-```
+TinyBrain is built with:
+- **Go** - High-performance backend
+- **SQLite** - Fast, reliable local storage with FTS5
+- **MCP Protocol** - LLM integration standard
+- **MITRE ATT&CK** - Security framework integration
+- **Jekyll** - Documentation site with Minimal theme
 
 ### Key Design Principles
 
 1. **Security-First**: All data structures and operations designed for security tasks
-2. **Performance**: Optimized queries and indexes for fast retrieval
-3. **Flexibility**: Extensible schema and relationship system
-4. **Reliability**: ACID transactions and data integrity checks
-5. **Usability**: Simple API with comprehensive documentation
+2. **Intelligence-Focused**: Comprehensive intelligence gathering and analysis capabilities
+3. **Performance**: Optimized queries and indexes for fast retrieval
+4. **Flexibility**: Extensible schema and relationship system
+5. **Reliability**: ACID transactions and data integrity checks
+6. **Usability**: Simple API with comprehensive documentation
 
 ## 🧪 Testing
 
@@ -476,6 +547,11 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 ## 📈 Roadmap
 
+- [x] Intelligence gathering frameworks (OSINT, HUMINT, SIGINT, etc.)
+- [x] MITRE ATT&CK integration
+- [x] Reverse engineering capabilities
+- [x] Enhanced memory categories
+- [x] Comprehensive documentation site
 - [ ] HTTP transport support
 - [ ] Memory compression and archiving
 - [ ] Advanced analytics and insights
