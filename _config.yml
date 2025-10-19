@@ -1,5 +1,5 @@
 # TinyBrain Documentation Site Configuration
-# GitHub Pages with Minimal Jekyll Theme
+# GitHub Pages with Custom Jekyll Theme
 
 # Site Settings
 title: TinyBrain
@@ -7,48 +7,12 @@ description: Security-focused LLM memory storage with intelligence gathering, re
 url: "https://rainmana.github.io"
 baseurl: "/tinybrain"
 
-# No theme - completely custom
-
-# Override theme layout
-layout: default
-
-# Custom Layout
-
 # Build Settings
 markdown: kramdown
 highlighter: rouge
 kramdown:
   input: GFM
   syntax_highlighter: rouge
-
-# Navigation
-navigation:
-  - title: Home
-    url: /
-  - title: Documentation
-    url: /documentation/
-  - title: Getting Started
-    url: /getting-started/
-  - title: Core Features
-    url: /core-features/
-  - title: Advanced Features
-    url: /advanced-features/
-  - title: Intelligence & Reconnaissance
-    url: /intelligence/
-  - title: Reverse Engineering
-    url: /reverse-engineering/
-  - title: Security Patterns
-    url: /security-patterns/
-  - title: AI Integration
-    url: /ai-integration/
-  - title: Authorization
-    url: /authorization/
-  - title: Integration
-    url: /integration/
-  - title: API Reference
-    url: /api-reference/
-  - title: Contributing
-    url: /contributing/
 
 # Collections
 collections:
