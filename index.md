@@ -4,6 +4,8 @@ title: TinyBrain
 description: Security-focused LLM memory storage with intelligence gathering, reverse engineering, and MITRE ATT&CK integration
 ---
 
+<!-- Force rebuild -->
+
 # TinyBrain
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
