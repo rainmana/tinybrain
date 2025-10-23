@@ -379,34 +379,67 @@ func (r *SecurityRepository) QueryATTACK(ctx context.Context, req models.ATTACKS
 func (r *SecurityRepository) GetSecurityDataSummary(ctx context.Context) (map[string]models.SecurityDataSummary, error) {
 	summaries := make(map[string]models.SecurityDataSummary)
 
-	// NVD Summary
+	// NVD Summary - check if table exists first
 	var nvdCount int
 	var nvdLastUpdate sql.NullTime
 	err := r.db.GetDB().QueryRowContext(ctx, "SELECT COUNT(*), MAX(updated_at) FROM nvd_cves").Scan(&nvdCount, &nvdLastUpdate)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get NVD summary: %v", err)
+		// Table doesn't exist yet, create empty summary
+		summaries["nvd"] = models.SecurityDataSummary{
+			DataSource:   "nvd",
+			TotalRecords: 0,
+			LastUpdate:   nil,
+			Summary:      "NVD database not yet populated",
+		}
+	} else {
+		summaries["nvd"] = models.SecurityDataSummary{
+			DataSource:   "nvd",
+			TotalRecords: nvdCount,
+			LastUpdate:   &nvdLastUpdate.Time,
+			Summary:      fmt.Sprintf("NVD database contains %d CVE entries", nvdCount),
+		}
 	}
 
-	summaries["nvd"] = models.SecurityDataSummary{
-		DataSource:   "nvd",
-		TotalRecords: nvdCount,
-		LastUpdate:   &nvdLastUpdate.Time,
-		Summary:      fmt.Sprintf("NVD database contains %d CVE entries", nvdCount),
-	}
-
-	// ATT&CK Summary
+	// ATT&CK Summary - check if table exists first
 	var attackCount int
 	var attackLastUpdate sql.NullTime
 	err = r.db.GetDB().QueryRowContext(ctx, "SELECT COUNT(*), MAX(updated_at) FROM attack_techniques").Scan(&attackCount, &attackLastUpdate)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get ATT&CK summary: %v", err)
+		// Table doesn't exist yet, create empty summary
+		summaries["attack"] = models.SecurityDataSummary{
+			DataSource:   "attack",
+			TotalRecords: 0,
+			LastUpdate:   nil,
+			Summary:      "MITRE ATT&CK database not yet populated",
+		}
+	} else {
+		summaries["attack"] = models.SecurityDataSummary{
+			DataSource:   "attack",
+			TotalRecords: attackCount,
+			LastUpdate:   &attackLastUpdate.Time,
+			Summary:      fmt.Sprintf("MITRE ATT&CK database contains %d techniques", attackCount),
+		}
 	}
 
-	summaries["attack"] = models.SecurityDataSummary{
-		DataSource:   "attack",
-		TotalRecords: attackCount,
-		LastUpdate:   &attackLastUpdate.Time,
-		Summary:      fmt.Sprintf("MITRE ATT&CK database contains %d techniques", attackCount),
+	// OWASP Summary - check if table exists first
+	var owaspCount int
+	var owaspLastUpdate sql.NullTime
+	err = r.db.GetDB().QueryRowContext(ctx, "SELECT COUNT(*), MAX(updated_at) FROM owasp_procedures").Scan(&owaspCount, &owaspLastUpdate)
+	if err != nil {
+		// Table doesn't exist yet, create empty summary
+		summaries["owasp"] = models.SecurityDataSummary{
+			DataSource:   "owasp",
+			TotalRecords: 0,
+			LastUpdate:   nil,
+			Summary:      "OWASP Testing Guide not yet populated",
+		}
+	} else {
+		summaries["owasp"] = models.SecurityDataSummary{
+			DataSource:   "owasp",
+			TotalRecords: owaspCount,
+			LastUpdate:   &owaspLastUpdate.Time,
+			Summary:      fmt.Sprintf("OWASP Testing Guide contains %d procedures", owaspCount),
+		}
 	}
 
 	return summaries, nil

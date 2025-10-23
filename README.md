@@ -65,7 +65,9 @@ TinyBrain is a comprehensive memory storage system designed specifically for sec
 - **Context Summaries**: Provides relevant memory summaries for current tasks
 
 ### High Performance & Reliability
-- **SQLite Backend**: Fast, reliable, local storage with full-text search
+- **PocketBase Backend**: Single binary with embedded SQLite, REST API, and real-time capabilities
+- **Admin Dashboard**: Web-based interface for data management and visualization
+- **Real-time Updates**: Server-sent events for live memory updates
 - **Optimized Queries**: Indexed searches and efficient relationship traversal
 - **Transaction Safety**: ACID compliance for data integrity
 - **Concurrent Access**: Thread-safe operations for multiple LLM interactions
@@ -208,11 +210,14 @@ Download from [Releases](https://github.com/rainmana/tinybrain/releases)
 ### Basic Usage
 
 ```bash
-# Start the server (uses ~/.tinybrain/memory.db by default)
-tinybrain-server
+# Start the server (uses ~/.tinybrain by default)
+tinybrain serve --dir ~/.tinybrain
 
-# Or with custom database path
-TINYBRAIN_DB_PATH=/path/to/your/memory.db tinybrain-server
+# Access admin dashboard
+open http://127.0.0.1:8090/_/
+
+# Or with custom data directory
+tinybrain serve --dir /path/to/your/data
 ```
 
 ### Intelligence Gathering Example
@@ -414,7 +419,7 @@ The documentation includes:
 
 TinyBrain is built with:
 - **Go** - High-performance backend
-- **SQLite** - Fast, reliable local storage with FTS5
+- **PocketBase** - Single binary with embedded SQLite, REST API, and real-time capabilities
 - **MCP Protocol** - LLM integration standard
 - **MITRE ATT&CK** - Security framework integration
 - **Jekyll** - Documentation site with Minimal theme
