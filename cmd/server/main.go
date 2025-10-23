@@ -8,19 +8,24 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/charmbracelet/log"
 	"github.com/rainmana/tinybrain/internal/database"
 	"github.com/rainmana/tinybrain/internal/mcp"
 	"github.com/rainmana/tinybrain/internal/models"
 	"github.com/rainmana/tinybrain/internal/repository"
-	"github.com/charmbracelet/log"
+	"github.com/rainmana/tinybrain/internal/services"
 )
 
 // TinyBrainServer represents the main MCP server for security-focused memory storage
 type TinyBrainServer struct {
-	db         *database.Database
-	repo       *repository.MemoryRepository
-	logger     *log.Logger
-	dbPath     string
+	db                 *database.Database
+	repo               *repository.MemoryRepository
+	securityRepo       *repository.SecurityRepository
+	securityDownloader *services.SecurityDataDownloader
+	securityRetrieval  *services.SecurityRetrievalService
+	securityUpdate     *services.SecurityUpdateService
+	logger             *log.Logger
+	dbPath             string
 }
 
 func main() {
@@ -50,19 +55,29 @@ func main() {
 	}
 	defer db.Close()
 
-	// Initialize repository
+	// Initialize repositories
 	repo := repository.NewMemoryRepository(db.GetDB(), logger)
+	securityRepo := repository.NewSecurityRepository(db, logger)
+
+	// Initialize security services
+	securityDownloader := services.NewSecurityDataDownloader(logger)
+	securityRetrieval := services.NewSecurityRetrievalService(securityRepo, logger)
+	securityUpdate := services.NewSecurityUpdateService(securityDownloader, securityRepo, logger)
 
 	// Create server instance
 	tinyBrain := &TinyBrainServer{
-		db:     db,
-		repo:   repo,
-		logger: logger,
-		dbPath: dbPath,
+		db:                 db,
+		repo:               repo,
+		securityRepo:       securityRepo,
+		securityDownloader: securityDownloader,
+		securityRetrieval:  securityRetrieval,
+		securityUpdate:     securityUpdate,
+		logger:             logger,
+		dbPath:             dbPath,
 	}
 
 	// Create MCP server
-	mcpServer := mcp.NewServer("TinyBrain Memory Storage", "1.0.0", 
+	mcpServer := mcp.NewServer("TinyBrain Memory Storage", "1.0.0",
 		"Security-focused LLM memory storage MCP server", logger)
 
 	// Register tools
@@ -79,7 +94,7 @@ func main() {
 // registerTools registers all MCP tools for memory operations
 func (t *TinyBrainServer) registerTools(s *mcp.Server) {
 	// Session management tools
-	s.AddTool("create_session", 
+	s.AddTool("create_session",
 		"Create a new security-focused session for tracking LLM interactions",
 		map[string]interface{}{
 			"type": "object",
@@ -376,14 +391,14 @@ func (t *TinyBrainServer) registerTools(s *mcp.Server) {
 	s.AddTool("get_database_stats",
 		"Get database statistics and health information",
 		map[string]interface{}{
-			"type": "object",
+			"type":       "object",
 			"properties": map[string]interface{}{},
 		},
 		t.handleGetDatabaseStats,
 	)
 
 	// Context snapshot tools
-	s.AddTool("create_context_snapshot", 
+	s.AddTool("create_context_snapshot",
 		"Create a snapshot of the current context for a session",
 		map[string]interface{}{
 			"type": "object",
@@ -410,7 +425,7 @@ func (t *TinyBrainServer) registerTools(s *mcp.Server) {
 		t.handleCreateContextSnapshot,
 	)
 
-	s.AddTool("get_context_snapshot", 
+	s.AddTool("get_context_snapshot",
 		"Retrieve a context snapshot by ID",
 		map[string]interface{}{
 			"type": "object",
@@ -425,7 +440,7 @@ func (t *TinyBrainServer) registerTools(s *mcp.Server) {
 		t.handleGetContextSnapshot,
 	)
 
-	s.AddTool("list_context_snapshots", 
+	s.AddTool("list_context_snapshots",
 		"List context snapshots for a session",
 		map[string]interface{}{
 			"type": "object",
@@ -449,7 +464,7 @@ func (t *TinyBrainServer) registerTools(s *mcp.Server) {
 	)
 
 	// Task progress tools
-	s.AddTool("create_task_progress", 
+	s.AddTool("create_task_progress",
 		"Create a new task progress entry for tracking multi-stage security tasks",
 		map[string]interface{}{
 			"type": "object",
@@ -484,7 +499,7 @@ func (t *TinyBrainServer) registerTools(s *mcp.Server) {
 		t.handleCreateTaskProgress,
 	)
 
-	s.AddTool("get_task_progress", 
+	s.AddTool("get_task_progress",
 		"Retrieve a task progress entry by ID",
 		map[string]interface{}{
 			"type": "object",
@@ -499,7 +514,7 @@ func (t *TinyBrainServer) registerTools(s *mcp.Server) {
 		t.handleGetTaskProgress,
 	)
 
-	s.AddTool("list_task_progress", 
+	s.AddTool("list_task_progress",
 		"List task progress entries for a session",
 		map[string]interface{}{
 			"type": "object",
@@ -605,7 +620,7 @@ func (t *TinyBrainServer) registerTools(s *mcp.Server) {
 	s.AddTool("get_security_templates",
 		"Get predefined templates for common security patterns",
 		map[string]interface{}{
-			"type": "object",
+			"type":       "object",
 			"properties": map[string]interface{}{},
 		},
 		t.handleGetSecurityTemplates,
@@ -747,7 +762,7 @@ func (t *TinyBrainServer) registerTools(s *mcp.Server) {
 	s.AddTool("get_memory_stats",
 		"Get comprehensive statistics about memory usage and aging",
 		map[string]interface{}{
-			"type": "object",
+			"type":       "object",
 			"properties": map[string]interface{}{},
 		},
 		t.handleGetMemoryStats,
@@ -771,7 +786,7 @@ func (t *TinyBrainServer) registerTools(s *mcp.Server) {
 	s.AddTool("get_system_diagnostics",
 		"Get comprehensive system diagnostics and debugging information",
 		map[string]interface{}{
-			"type": "object",
+			"type":       "object",
 			"properties": map[string]interface{}{},
 		},
 		t.handleGetSystemDiagnostics,
@@ -905,13 +920,186 @@ func (t *TinyBrainServer) registerTools(s *mcp.Server) {
 	s.AddTool("health_check",
 		"Perform a health check on the database and server",
 		map[string]interface{}{
-			"type": "object",
+			"type":       "object",
 			"properties": map[string]interface{}{},
 		},
 		t.handleHealthCheck,
 	)
-}
 
+	// CVE Mapping Tools
+	s.AddTool("map_to_cve",
+		"Map a CWE to known CVE entries from the National Vulnerability Database",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"session_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ID of the session",
+				},
+				"cwe_id": map[string]interface{}{
+					"type":        "string",
+					"description": "CWE ID to map to CVEs (e.g., CWE-89, CWE-79)",
+				},
+			},
+			"required": []string{"session_id", "cwe_id"},
+		},
+		t.handleMapToCVE,
+	)
+
+	// Risk Correlation Tools
+	s.AddTool("analyze_risk_correlation",
+		"Analyze risk correlations between vulnerabilities to identify attack chains and compound risks",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"session_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ID of the session to analyze",
+				},
+			},
+			"required": []string{"session_id"},
+		},
+		t.handleAnalyzeRiskCorrelation,
+	)
+
+	// Compliance Mapping Tools
+	s.AddTool("map_to_compliance",
+		"Map vulnerabilities to security compliance standards (OWASP, NIST, ISO 27001, PCI DSS)",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"session_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ID of the session",
+				},
+				"standard": map[string]interface{}{
+					"type":        "string",
+					"description": "Compliance standard to map to (OWASP, NIST, ISO27001, PCIDSS)",
+				},
+			},
+			"required": []string{"session_id", "standard"},
+		},
+		t.handleMapToCompliance,
+	)
+
+	// Security Knowledge Hub Tools
+	s.AddTool("query_nvd",
+		"Query NVD for relevant CVEs based on vulnerability context",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"cwe_id": map[string]interface{}{
+					"type":        "string",
+					"description": "CWE identifier (e.g., CWE-89)",
+				},
+				"component": map[string]interface{}{
+					"type":        "string",
+					"description": "Affected component or technology",
+				},
+				"severity": map[string]interface{}{
+					"type":        "string",
+					"description": "Minimum severity level (LOW, MEDIUM, HIGH, CRITICAL)",
+				},
+				"min_cvss": map[string]interface{}{
+					"type":        "number",
+					"description": "Minimum CVSS score threshold",
+				},
+				"limit": map[string]interface{}{
+					"type":        "number",
+					"description": "Maximum number of results (default: 10)",
+				},
+			},
+		},
+		t.handleQueryNVD,
+	)
+
+	s.AddTool("query_attack",
+		"Query MITRE ATT&CK for relevant techniques and procedures",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"technique_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ATT&CK technique ID (e.g., T1055.001)",
+				},
+				"tactic": map[string]interface{}{
+					"type":        "string",
+					"description": "ATT&CK tactic (e.g., persistence)",
+				},
+				"platform": map[string]interface{}{
+					"type":        "string",
+					"description": "Target platform (e.g., windows, linux)",
+				},
+				"query": map[string]interface{}{
+					"type":        "string",
+					"description": "Text search query",
+				},
+				"limit": map[string]interface{}{
+					"type":        "number",
+					"description": "Maximum number of results (default: 10)",
+				},
+			},
+		},
+		t.handleQueryATTACK,
+	)
+
+	s.AddTool("query_owasp",
+		"Query OWASP Testing Guide for relevant procedures",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"category": map[string]interface{}{
+					"type":        "string",
+					"description": "Testing category (e.g., authentication)",
+				},
+				"vulnerability_type": map[string]interface{}{
+					"type":        "string",
+					"description": "Type of vulnerability",
+				},
+				"testing_phase": map[string]interface{}{
+					"type":        "string",
+					"description": "Testing phase (e.g., static, dynamic)",
+				},
+				"query": map[string]interface{}{
+					"type":        "string",
+					"description": "Text search query",
+				},
+				"limit": map[string]interface{}{
+					"type":        "number",
+					"description": "Maximum number of results (default: 10)",
+				},
+			},
+		},
+		t.handleQueryOWASP,
+	)
+
+	s.AddTool("download_security_data",
+		"Download and update security datasets (NVD, ATT&CK, OWASP)",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"data_source": map[string]interface{}{
+					"type":        "string",
+					"description": "Data source to download (nvd, attack, owasp, all)",
+				},
+				"force_update": map[string]interface{}{
+					"type":        "boolean",
+					"description": "Force update even if data is recent (default: false)",
+				},
+			},
+		},
+		t.handleDownloadSecurityData,
+	)
+
+	s.AddTool("get_security_data_summary",
+		"Get summary of available security data",
+		map[string]interface{}{
+			"type":       "object",
+			"properties": map[string]interface{}{},
+		},
+		t.handleGetSecurityDataSummary,
+	)
+}
 
 // Tool handlers
 
@@ -969,7 +1157,7 @@ func (t *TinyBrainServer) handleGetSession(ctx context.Context, params map[strin
 func (t *TinyBrainServer) handleListSessions(ctx context.Context, params map[string]interface{}) (interface{}, error) {
 	taskType, _ := params["task_type"].(string)
 	status, _ := params["status"].(string)
-	
+
 	limit := 50
 	if limitVal, ok := params["limit"].(float64); ok {
 		limit = int(limitVal)
@@ -1110,15 +1298,15 @@ func (t *TinyBrainServer) handleSearchMemories(ctx context.Context, params map[s
 	}
 
 	searchReq := &models.SearchRequest{
-		Query:        query,
-		SessionID:    sessionID,
-		Categories:   categories,
-		Tags:         tags,
-		MinPriority:  minPriority,
+		Query:         query,
+		SessionID:     sessionID,
+		Categories:    categories,
+		Tags:          tags,
+		MinPriority:   minPriority,
 		MinConfidence: minConfidence,
-		Limit:        limit,
-		Offset:       offset,
-		SearchType:   searchType,
+		Limit:         limit,
+		Offset:        offset,
+		SearchType:    searchType,
 	}
 
 	results, err := t.repo.SearchMemoryEntries(ctx, searchReq)
@@ -1136,7 +1324,7 @@ func (t *TinyBrainServer) handleGetRelatedMemories(ctx context.Context, params m
 	}
 
 	relationshipType, _ := params["relationship_type"].(string)
-	
+
 	limit := 10
 	if limitVal, ok := params["limit"].(float64); ok {
 		limit = int(limitVal)
@@ -1196,7 +1384,7 @@ func (t *TinyBrainServer) handleGetContextSummary(ctx context.Context, params ma
 	}
 
 	currentTask, _ := params["current_task"].(string)
-	
+
 	maxMemories := 20
 	if maxVal, ok := params["max_memories"].(float64); ok {
 		maxMemories = int(maxVal)
@@ -1222,10 +1410,10 @@ func (t *TinyBrainServer) handleGetContextSummary(ctx context.Context, params ma
 	}
 
 	summary := &models.MemorySummary{
-		SessionID:         sessionID,
-		RelevantMemories:  relevantMemories,
-		Summary:           fmt.Sprintf("Found %d relevant memories for current context", len(relevantMemories)),
-		GeneratedAt:       time.Now(),
+		SessionID:        sessionID,
+		RelevantMemories: relevantMemories,
+		Summary:          fmt.Sprintf("Found %d relevant memories for current context", len(relevantMemories)),
+		GeneratedAt:      time.Now(),
 	}
 
 	return summary, nil
@@ -1253,7 +1441,7 @@ func (t *TinyBrainServer) handleUpdateTaskProgress(ctx context.Context, params m
 	}
 
 	notes, _ := params["notes"].(string)
-	
+
 	progressPercentage := 0
 	if progressVal, ok := params["progress_percentage"].(float64); ok {
 		progressPercentage = int(progressVal)
@@ -1542,10 +1730,10 @@ func (t *TinyBrainServer) handleCleanupUnusedMemories(ctx context.Context, param
 	}
 
 	return map[string]interface{}{
-		"deleted_count":    deletedCount,
-		"max_unused_days":  int(maxUnusedDays),
-		"dry_run":          dryRun,
-		"message":          fmt.Sprintf("Cleaned up %d unused memories", deletedCount),
+		"deleted_count":   deletedCount,
+		"max_unused_days": int(maxUnusedDays),
+		"dry_run":         dryRun,
+		"message":         fmt.Sprintf("Cleaned up %d unused memories", deletedCount),
 	}, nil
 }
 
@@ -1603,9 +1791,9 @@ func (t *TinyBrainServer) handleSemanticSearch(ctx context.Context, params map[s
 	}
 
 	return map[string]interface{}{
-		"memories": memories,
-		"count":    len(memories),
-		"query":    query,
+		"memories":   memories,
+		"count":      len(memories),
+		"query":      query,
 		"session_id": sessionID,
 	}, nil
 }
@@ -1654,7 +1842,7 @@ func (t *TinyBrainServer) handleCalculateSimilarity(ctx context.Context, params 
 	}
 
 	return map[string]interface{}{
-		"similarity": similarity,
+		"similarity":           similarity,
 		"embedding1_dimension": len(embedding1),
 		"embedding2_dimension": len(embedding2),
 	}, nil
@@ -1853,7 +2041,7 @@ func (t *TinyBrainServer) handleCreateTaskProgress(ctx context.Context, params m
 	}
 
 	notes, _ := params["notes"].(string)
-	
+
 	progressPercentage := 0
 	if progressVal, ok := params["progress_percentage"].(float64); ok {
 		progressPercentage = int(progressVal)
@@ -1888,7 +2076,7 @@ func (t *TinyBrainServer) handleListTaskProgress(ctx context.Context, params map
 	}
 
 	status, _ := params["status"].(string)
-	
+
 	limit := 20
 	if limitVal, ok := params["limit"].(float64); ok {
 		limit = int(limitVal)
@@ -1907,3 +2095,306 @@ func (t *TinyBrainServer) handleListTaskProgress(ctx context.Context, params map
 	return tasks, nil
 }
 
+// CVE Mapping Handlers
+
+func (t *TinyBrainServer) handleMapToCVE(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	sessionID, ok := params["session_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("session_id is required")
+	}
+
+	cweID, ok := params["cwe_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("cwe_id is required")
+	}
+
+	cveMapping, err := t.repo.MapToCVE(ctx, sessionID, cweID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to map CWE to CVE: %v", err)
+	}
+
+	return cveMapping, nil
+}
+
+// Risk Correlation Handlers
+
+func (t *TinyBrainServer) handleAnalyzeRiskCorrelation(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	sessionID, ok := params["session_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("session_id is required")
+	}
+
+	correlations, err := t.repo.AnalyzeRiskCorrelation(ctx, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("failed to analyze risk correlation: %v", err)
+	}
+
+	return correlations, nil
+}
+
+// Compliance Mapping Handlers
+
+func (t *TinyBrainServer) handleMapToCompliance(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	sessionID, ok := params["session_id"].(string)
+	if !ok {
+		return nil, fmt.Errorf("session_id is required")
+	}
+
+	standard, ok := params["standard"].(string)
+	if !ok {
+		return nil, fmt.Errorf("standard is required")
+	}
+
+	complianceMapping, err := t.repo.MapToCompliance(ctx, sessionID, standard)
+	if err != nil {
+		return nil, fmt.Errorf("failed to map to compliance: %v", err)
+	}
+
+	return complianceMapping, nil
+}
+
+// Security Knowledge Hub Handlers
+
+func (t *TinyBrainServer) handleQueryNVD(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	t.logger.Info("Querying NVD data")
+
+	// Parse query parameters
+	query, _ := params["query"].(string)
+	limit := 10
+	if l, ok := params["limit"].(float64); ok {
+		limit = int(l)
+	}
+
+	// Create search request
+	searchReq := models.NVDSearchRequest{
+		Limit: limit,
+	}
+
+	// Query NVD data
+	cves, total, err := t.securityRepo.QueryNVD(ctx, searchReq)
+	if err != nil {
+		t.logger.Error("Failed to query NVD data", "error", err)
+		return map[string]interface{}{
+			"error":  err.Error(),
+			"status": "error",
+		}, nil
+	}
+
+	// Convert CVEs to response format
+	var results []map[string]interface{}
+	for _, cve := range cves {
+		result := map[string]interface{}{
+			"id":             cve.ID,
+			"description":    cve.Description,
+			"severity":       cve.Severity,
+			"cvss_v3_score":  cve.CVSSV3Score,
+			"published_date": cve.PublishedDate,
+			"cwe_ids":        cve.CWEIDs,
+		}
+		results = append(results, result)
+	}
+
+	return map[string]interface{}{
+		"results": results,
+		"total":   total,
+		"query":   query,
+		"status":  "success",
+	}, nil
+}
+
+func (t *TinyBrainServer) handleQueryATTACK(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	t.logger.Info("Querying ATT&CK data")
+
+	// Parse query parameters
+	query, _ := params["query"].(string)
+	limit := 10
+	if l, ok := params["limit"].(float64); ok {
+		limit = int(l)
+	}
+
+	// Create search request
+	searchReq := models.ATTACKSearchRequest{
+		Query: &query,
+		Limit: limit,
+	}
+
+	// Query ATT&CK data
+	techniques, total, err := t.securityRepo.QueryATTACK(ctx, searchReq)
+	if err != nil {
+		t.logger.Error("Failed to query ATT&CK data", "error", err)
+		return map[string]interface{}{
+			"error":  err.Error(),
+			"status": "error",
+		}, nil
+	}
+
+	// Convert techniques to response format
+	var results []map[string]interface{}
+	for _, technique := range techniques {
+		result := map[string]interface{}{
+			"id":                technique.ID,
+			"name":              technique.Name,
+			"description":       technique.Description,
+			"tactic":            technique.Tactic,
+			"platforms":         technique.Platforms,
+			"kill_chain_phases": technique.KillChainPhases,
+		}
+		results = append(results, result)
+	}
+
+	return map[string]interface{}{
+		"results": results,
+		"total":   total,
+		"query":   query,
+		"status":  "success",
+	}, nil
+}
+
+func (t *TinyBrainServer) handleQueryOWASP(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	t.logger.Info("Querying OWASP data")
+
+	// Parse query parameters
+	query, _ := params["query"].(string)
+	limit := 10
+	if l, ok := params["limit"].(float64); ok {
+		limit = int(l)
+	}
+
+	// For now, OWASP data is not stored in the repository yet
+	// Return a placeholder response indicating this
+	return map[string]interface{}{
+		"message": "OWASP querying not yet fully implemented - OWASP data storage not yet integrated",
+		"query":   query,
+		"limit":   limit,
+		"status":  "not_implemented",
+		"note":    "OWASP procedures are downloaded but not yet stored in the database",
+	}, nil
+}
+
+func (t *TinyBrainServer) handleDownloadSecurityData(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	t.logger.Info("Starting security data download")
+
+	// Parse data source parameter
+	dataSource, ok := params["data_source"].(string)
+	if !ok {
+		dataSource = "all" // Default to all sources
+	}
+
+	var results map[string]interface{} = make(map[string]interface{})
+
+	// Download based on specified data source
+	if dataSource == "nvd" || dataSource == "all" {
+		t.logger.Info("Downloading NVD dataset")
+		cves, err := t.securityDownloader.DownloadNVDDataset(ctx)
+		if err != nil {
+			t.logger.Error("Failed to download NVD data", "error", err)
+			results["nvd"] = map[string]interface{}{
+				"error":  err.Error(),
+				"status": "failed",
+			}
+		} else {
+			// Store in database
+			if err := t.securityRepo.StoreNVDDataset(ctx, cves); err != nil {
+				t.logger.Error("Failed to store NVD data", "error", err)
+				results["nvd"] = map[string]interface{}{
+					"error":  err.Error(),
+					"status": "storage_failed",
+				}
+			} else {
+				results["nvd"] = map[string]interface{}{
+					"count":  len(cves),
+					"status": "success",
+				}
+			}
+		}
+	}
+
+	if dataSource == "attack" || dataSource == "all" {
+		t.logger.Info("Downloading ATT&CK dataset")
+		techniques, tactics, err := t.securityDownloader.DownloadATTACKDataset(ctx)
+		if err != nil {
+			t.logger.Error("Failed to download ATT&CK data", "error", err)
+			results["attack"] = map[string]interface{}{
+				"error":  err.Error(),
+				"status": "failed",
+			}
+		} else {
+			// Store in database
+			if err := t.securityRepo.StoreATTACKDataset(ctx, techniques, tactics); err != nil {
+				t.logger.Error("Failed to store ATT&CK data", "error", err)
+				results["attack"] = map[string]interface{}{
+					"error":  err.Error(),
+					"status": "storage_failed",
+				}
+			} else {
+				results["attack"] = map[string]interface{}{
+					"techniques": len(techniques),
+					"tactics":    len(tactics),
+					"status":     "success",
+				}
+			}
+		}
+	}
+
+	if dataSource == "owasp" || dataSource == "all" {
+		t.logger.Info("Downloading OWASP dataset")
+		procedures, err := t.securityDownloader.DownloadOWASPDataset(ctx)
+		if err != nil {
+			t.logger.Error("Failed to download OWASP data", "error", err)
+			results["owasp"] = map[string]interface{}{
+				"error":  err.Error(),
+				"status": "failed",
+			}
+		} else {
+			// Note: OWASP storage not yet implemented in repository
+			results["owasp"] = map[string]interface{}{
+				"count":   len(procedures),
+				"status":  "downloaded_but_not_stored",
+				"message": "OWASP storage not yet implemented",
+			}
+		}
+	}
+
+	if dataSource != "nvd" && dataSource != "attack" && dataSource != "owasp" && dataSource != "all" {
+		return map[string]interface{}{
+			"error":  fmt.Sprintf("Unknown data source: %s", dataSource),
+			"status": "error",
+		}, nil
+	}
+
+	return map[string]interface{}{
+		"results":     results,
+		"status":      "completed",
+		"data_source": dataSource,
+	}, nil
+}
+
+func (t *TinyBrainServer) handleGetSecurityDataSummary(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	t.logger.Info("Getting security data summary")
+
+	// Get summary from security repository
+	summary, err := t.securityRepo.GetSecurityDataSummary(ctx)
+	if err != nil {
+		t.logger.Error("Failed to get security data summary", "error", err)
+		return map[string]interface{}{
+			"error":  err.Error(),
+			"status": "error",
+		}, nil
+	}
+
+	// Convert to a more user-friendly format
+	result := make(map[string]interface{})
+	for source, data := range summary {
+		result[source] = map[string]interface{}{
+			"data_source":   data.DataSource,
+			"total_records": data.TotalRecords,
+			"last_update":   data.LastUpdate,
+			"summary":       data.Summary,
+		}
+	}
+
+	return map[string]interface{}{
+		"summary": result,
+		"status":  "success",
+	}, nil
+}

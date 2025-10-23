@@ -8,13 +8,13 @@ import (
 	"path/filepath"
 	"time"
 
-	_ "github.com/mattn/go-sqlite3"
 	"github.com/charmbracelet/log"
+	_ "github.com/mattn/go-sqlite3"
 )
 
 // Database represents the SQLite database connection and operations
 type Database struct {
-	db *sql.DB
+	db     *sql.DB
 	logger *log.Logger
 }
 
@@ -117,7 +117,7 @@ CREATE TABLE IF NOT EXISTS relationships (
     id TEXT PRIMARY KEY,
     source_entry_id TEXT NOT NULL,
     target_entry_id TEXT NOT NULL,
-    relationship_type TEXT NOT NULL CHECK (relationship_type IN ('depends_on', 'causes', 'mitigates', 'exploits', 'references', 'contradicts', 'supports', 'related_to', 'parent_of', 'child_of')),
+    relationship_type TEXT NOT NULL CHECK (relationship_type IN ('depends_on', 'causes', 'mitigates', 'exploits', 'refs', 'contradicts', 'supports', 'related_to', 'parent_of', 'child_of')),
     strength REAL DEFAULT 0.5 CHECK (strength >= 0.0 AND strength <= 1.0),
     description TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -338,6 +338,117 @@ CREATE TRIGGER IF NOT EXISTS memory_entries_fts_update AFTER UPDATE ON memory_en
     INSERT INTO memory_entries_fts(rowid, title, content, tags) 
     VALUES (new.rowid, new.title, new.content, new.tags);
 END;
+
+-- Security Knowledge Hub Tables
+
+-- NVD CVEs table
+CREATE TABLE IF NOT EXISTS nvd_cves (
+    id TEXT PRIMARY KEY,
+    description TEXT NOT NULL,
+    cvss_v2_score REAL,
+    cvss_v2_vector TEXT,
+    cvss_v3_score REAL,
+    cvss_v3_vector TEXT,
+    severity TEXT,
+    published_date DATETIME,
+    last_modified_date DATETIME,
+    cwe_ids TEXT, -- JSON array
+    affected_products TEXT, -- JSON array
+    refs TEXT, -- JSON array
+    raw_data TEXT, -- JSON raw data
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ATT&CK Techniques table
+CREATE TABLE IF NOT EXISTS attack_techniques (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    tactic TEXT,
+    tactics TEXT, -- JSON array
+    platforms TEXT, -- JSON array
+    kill_chain_phases TEXT, -- JSON array
+    data_sources TEXT, -- JSON array
+    detection TEXT,
+    mitigation TEXT,
+    refs TEXT, -- JSON array
+    sub_techniques TEXT, -- JSON array
+    parent_technique TEXT,
+    raw_data TEXT, -- JSON raw data
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ATT&CK Tactics table
+CREATE TABLE IF NOT EXISTS attack_tactics (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    kill_chain_phases TEXT, -- JSON array
+    techniques TEXT, -- JSON array
+    refs TEXT, -- JSON array
+    raw_data TEXT, -- JSON raw data
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- OWASP Procedures table
+CREATE TABLE IF NOT EXISTS owasp_procedures (
+    id TEXT PRIMARY KEY,
+    category TEXT NOT NULL,
+    subcategory TEXT,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    objective TEXT,
+    how_to_test TEXT,
+    tools TEXT, -- JSON array
+    refs TEXT, -- JSON array
+    severity TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Security Data Updates table
+CREATE TABLE IF NOT EXISTS security_data_updates (
+    id TEXT PRIMARY KEY,
+    data_source TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    total_records INTEGER,
+    error_message TEXT,
+    last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for security tables
+CREATE INDEX IF NOT EXISTS idx_nvd_cves_severity ON nvd_cves(severity);
+CREATE INDEX IF NOT EXISTS idx_nvd_cves_published ON nvd_cves(published_date);
+CREATE INDEX IF NOT EXISTS idx_nvd_cves_cvss3 ON nvd_cves(cvss_v3_score);
+
+CREATE INDEX IF NOT EXISTS idx_attack_techniques_tactic ON attack_techniques(tactic);
+CREATE INDEX IF NOT EXISTS idx_attack_techniques_platforms ON attack_techniques(platforms);
+
+CREATE INDEX IF NOT EXISTS idx_owasp_procedures_category ON owasp_procedures(category);
+CREATE INDEX IF NOT EXISTS idx_owasp_procedures_severity ON owasp_procedures(severity);
+
+-- FTS5 virtual tables for security data (if available)
+CREATE VIRTUAL TABLE IF NOT EXISTS nvd_cves_fts USING fts5(
+    id, description, cwe_ids,
+    content='nvd_cves',
+    content_rowid='rowid'
+);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS attack_techniques_fts USING fts5(
+    id, name, description, tactic,
+    content='attack_techniques',
+    content_rowid='rowid'
+);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS owasp_procedures_fts USING fts5(
+    id, title, description, category,
+    content='owasp_procedures',
+    content_rowid='rowid'
+);
 `
 
 	if _, err := d.db.Exec(fts5Schema); err != nil {
@@ -409,14 +520,14 @@ func (d *Database) GetStats() (map[string]interface{}, error) {
 
 	// Get table counts - using hardcoded table names to avoid SQL injection
 	tableQueries := map[string]string{
-		"sessions_count":         "SELECT COUNT(*) FROM sessions",
-		"memory_entries_count":   "SELECT COUNT(*) FROM memory_entries",
-		"relationships_count":    "SELECT COUNT(*) FROM relationships",
+		"sessions_count":          "SELECT COUNT(*) FROM sessions",
+		"memory_entries_count":    "SELECT COUNT(*) FROM memory_entries",
+		"relationships_count":     "SELECT COUNT(*) FROM relationships",
 		"context_snapshots_count": "SELECT COUNT(*) FROM context_snapshots",
-		"search_history_count":   "SELECT COUNT(*) FROM search_history",
-		"task_progress_count":    "SELECT COUNT(*) FROM task_progress",
+		"search_history_count":    "SELECT COUNT(*) FROM search_history",
+		"task_progress_count":     "SELECT COUNT(*) FROM task_progress",
 	}
-	
+
 	for statName, query := range tableQueries {
 		var count int
 		if err := d.db.QueryRow(query).Scan(&count); err != nil {

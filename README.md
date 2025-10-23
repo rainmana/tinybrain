@@ -36,6 +36,8 @@ TinyBrain is a comprehensive memory storage system designed specifically for sec
 - **Attack Chain Analysis**: Complete attack chain mapping and analysis
 - **Threat Hunting**: Hunt for specific TTPs and attack patterns
 - **Campaign Tracking**: Track attack campaigns and threat actor activities
+- **Real-Time Data**: Live MITRE ATT&CK dataset with 823+ techniques and 14 tactics
+- **Intelligent Querying**: Semantic search across attack techniques and procedures
 
 ### 🛡️ Security Patterns & Standards
 - **CWE Integration**: Common Weakness Enumeration patterns and classifications
@@ -43,6 +45,16 @@ TinyBrain is a comprehensive memory storage system designed specifically for sec
 - **Multi-Language Support**: Security patterns for 10+ programming languages
 - **Authorization Templates**: RBAC, ABAC, and DAC access control patterns
 - **Standards Compliance**: NIST, ISO 27001, PTES, and industry standards
+- **NVD Integration**: National Vulnerability Database with 314,835+ CVEs
+- **OWASP Testing Guide**: Complete web application security testing procedures
+
+### 🔬 Security Knowledge Hub
+- **NVD Integration**: National Vulnerability Database with 314,835+ CVEs
+- **MITRE ATT&CK**: Complete framework with 823+ techniques and 14 tactics
+- **OWASP Testing Guide**: Comprehensive web application security testing procedures
+- **Intelligent Retrieval**: Context-aware querying with summarization
+- **Real-Time Updates**: Incremental data updates from official sources
+- **Rate Limiting**: Respectful API usage with proper rate limiting
 
 ### 📊 Memory Management
 - **30+ Memory Categories**: Comprehensive categorization for intelligence, reconnaissance, and analysis data

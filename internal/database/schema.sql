@@ -148,6 +148,114 @@ SELECT
 FROM memory_entries me
 JOIN sessions s ON me.session_id = s.id;
 
+-- Security Knowledge Hub Tables
+
+-- NVD CVE data table
+CREATE TABLE IF NOT EXISTS nvd_cves (
+    id TEXT PRIMARY KEY, -- CVE ID (e.g., CVE-2024-1234)
+    description TEXT NOT NULL,
+    cvss_v2_score REAL,
+    cvss_v2_vector TEXT,
+    cvss_v3_score REAL,
+    cvss_v3_vector TEXT,
+    severity TEXT CHECK (severity IN ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL')),
+    published_date DATETIME,
+    last_modified_date DATETIME,
+    cwe_ids TEXT, -- JSON array of CWE IDs
+    affected_products TEXT, -- JSON array of affected products
+    references TEXT, -- JSON array of references
+    raw_data TEXT, -- Full JSON data from NVD
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- MITRE ATT&CK techniques table
+CREATE TABLE IF NOT EXISTS attack_techniques (
+    id TEXT PRIMARY KEY, -- Technique ID (e.g., T1055.001)
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    tactic TEXT NOT NULL, -- Primary tactic
+    tactics TEXT, -- JSON array of all tactics
+    platforms TEXT, -- JSON array of platforms
+    kill_chain_phases TEXT, -- JSON array of kill chain phases
+    data_sources TEXT, -- JSON array of data sources
+    detection TEXT, -- Detection guidance
+    mitigation TEXT, -- Mitigation guidance
+    references TEXT, -- JSON array of references
+    sub_techniques TEXT, -- JSON array of sub-technique IDs
+    parent_technique TEXT, -- Parent technique ID if this is a sub-technique
+    raw_data TEXT, -- Full STIX object data
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- MITRE ATT&CK tactics table
+CREATE TABLE IF NOT EXISTS attack_tactics (
+    id TEXT PRIMARY KEY, -- Tactic ID
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    external_id TEXT, -- External reference ID
+    kill_chain_phases TEXT, -- JSON array of kill chain phases
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- OWASP testing procedures table
+CREATE TABLE IF NOT EXISTS owasp_procedures (
+    id TEXT PRIMARY KEY,
+    category TEXT NOT NULL, -- Testing category
+    subcategory TEXT,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    objective TEXT, -- Testing objective
+    how_to_test TEXT, -- How to test procedure
+    tools TEXT, -- JSON array of recommended tools
+    references TEXT, -- JSON array of references
+    severity TEXT CHECK (severity IN ('LOW', 'MEDIUM', 'HIGH', 'CRITICAL')),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Security data update tracking
+CREATE TABLE IF NOT EXISTS security_data_updates (
+    id TEXT PRIMARY KEY,
+    data_source TEXT NOT NULL CHECK (data_source IN ('nvd', 'attack', 'owasp')),
+    last_update DATETIME,
+    total_records INTEGER,
+    update_status TEXT CHECK (update_status IN ('pending', 'in_progress', 'completed', 'failed')),
+    error_message TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for security data tables
+CREATE INDEX IF NOT EXISTS idx_nvd_cves_severity ON nvd_cves(severity);
+CREATE INDEX IF NOT EXISTS idx_nvd_cves_published ON nvd_cves(published_date);
+CREATE INDEX IF NOT EXISTS idx_nvd_cves_cvss3 ON nvd_cves(cvss_v3_score);
+CREATE INDEX IF NOT EXISTS idx_attack_techniques_tactic ON attack_techniques(tactic);
+CREATE INDEX IF NOT EXISTS idx_attack_techniques_platforms ON attack_techniques(platforms);
+CREATE INDEX IF NOT EXISTS idx_owasp_procedures_category ON owasp_procedures(category);
+CREATE INDEX IF NOT EXISTS idx_owasp_procedures_severity ON owasp_procedures(severity);
+
+-- Full-text search for security data (if FTS5 is available)
+CREATE VIRTUAL TABLE IF NOT EXISTS nvd_cves_fts USING fts5(
+    id, description, affected_products,
+    content='nvd_cves',
+    content_rowid='rowid'
+);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS attack_techniques_fts USING fts5(
+    id, name, description, tactic,
+    content='attack_techniques',
+    content_rowid='rowid'
+);
+
+CREATE VIRTUAL TABLE IF NOT EXISTS owasp_procedures_fts USING fts5(
+    id, title, description, category,
+    content='owasp_procedures',
+    content_rowid='rowid'
+);
+
 -- Create view for relationship analysis
 CREATE VIEW IF NOT EXISTS relationship_network AS
 SELECT 
