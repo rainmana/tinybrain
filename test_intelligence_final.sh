@@ -135,7 +135,7 @@ run_test "Error Handling - Invalid JSON" '
 RESPONSE=$(curl -s -X POST http://127.0.0.1:8090/mcp \
   -H "Content-Type: application/json" \
   -d "invalid json")
-echo "$RESPONSE" | grep -q "BadRequestError\|error\|invalid"
+echo "$RESPONSE" | grep -q "Parse error"
 '
 
 # Test 13: Error Handling - Invalid Method
@@ -196,7 +196,7 @@ curl -s http://127.0.0.1:8090/_/ | grep -q "PocketBase"
 
 # Test 20: REST API Base
 run_test "REST API Base" '
-curl -s http://127.0.0.1:8090/api/ | grep -q "PocketBase\|html\|<!DOCTYPE"
+curl -s http://127.0.0.1:8090/api/ | grep -q "TinyBrain Intelligence API"
 '
 
 # Stop the server
