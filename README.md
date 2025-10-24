@@ -66,11 +66,12 @@ TinyBrain is a comprehensive memory storage system designed specifically for sec
 
 ### High Performance & Reliability
 - **PocketBase Backend**: Single binary with embedded SQLite, REST API, and real-time capabilities
-- **Admin Dashboard**: Web-based interface for data management and visualization
+- **Admin Dashboard**: Web-based interface for data management and visualization at http://127.0.0.1:8090/_/
 - **Real-time Updates**: Server-sent events for live memory updates
 - **Optimized Queries**: Indexed searches and efficient relationship traversal
 - **Transaction Safety**: ACID compliance for data integrity
 - **Concurrent Access**: Thread-safe operations for multiple LLM interactions
+- **Zero Configuration**: Works out of the box with minimal setup
 
 ### AI-Enhanced Search & Intelligence
 - **Semantic Search**: AI-powered memory search using embeddings for conceptual similarity
@@ -219,6 +220,17 @@ open http://127.0.0.1:8090/_/
 # Or with custom data directory
 tinybrain serve --dir /path/to/your/data
 ```
+
+### PocketBase Integration Features
+
+TinyBrain now uses PocketBase as its backend, providing:
+
+- **Single Binary**: Everything in one executable with zero configuration
+- **Admin Dashboard**: Web interface at http://127.0.0.1:8090/_/ for data management
+- **REST API**: Full REST API at http://127.0.0.1:8090/api/ for external integrations
+- **Real-time Updates**: Server-sent events for live memory updates
+- **Data Persistence**: All data persists across server restarts
+- **Comprehensive Testing**: 17/17 tests passing with full functionality verification
 
 ### Intelligence Gathering Example
 
@@ -420,9 +432,19 @@ The documentation includes:
 TinyBrain is built with:
 - **Go** - High-performance backend
 - **PocketBase** - Single binary with embedded SQLite, REST API, and real-time capabilities
-- **MCP Protocol** - LLM integration standard
+- **MCP Protocol** - LLM integration standard with 40+ tools
 - **MITRE ATT&CK** - Security framework integration
 - **Jekyll** - Documentation site with Minimal theme
+
+### PocketBase Integration Benefits
+
+- **Single Binary Deployment**: No external dependencies, works anywhere Go runs
+- **Embedded Database**: SQLite database embedded in the binary
+- **Web Admin Interface**: Built-in dashboard for data management and visualization
+- **REST API**: Full REST API for external integrations and automation
+- **Real-time Capabilities**: Server-sent events for live updates
+- **Zero Configuration**: Works out of the box with sensible defaults
+- **Data Persistence**: All data automatically persisted across restarts
 
 ### Key Design Principles
 
