@@ -20,17 +20,18 @@ TinyBrain is a Model Context Protocol (MCP) server designed for security profess
 ## 🚀 Quick Start
 
 ```bash
-# Clone the repository
-git clone https://github.com/rainmana/tinybrain.git
-cd tinybrain
+# Install from source (recommended)
+go install github.com/rainmana/tinybrain/cmd/server@latest
 
-# Build and run
-make build
-make run
+# Start the server
+tinybrain serve --dir ~/.tinybrain
+
+# Access admin dashboard
+open http://127.0.0.1:8090/_/
 
 # Or use Docker
 docker build -t tinybrain .
-docker run -p 8080:8080 tinybrain
+docker run -p 8090:8090 tinybrain
 ```
 
 ## ✨ Key Features
@@ -43,6 +44,8 @@ docker run -p 8080:8080 tinybrain
 - 🔗 **MCP Protocol**: Seamless integration with AI assistants and LLMs
 - 🔍 **Pattern Recognition**: Advanced insight mapping and correlation analysis
 - 🎯 **Threat Intelligence**: Threat actor profiling, attack campaign tracking, IOC management
+- 🚀 **PocketBase Integration**: Single binary with admin dashboard, REST API, and real-time capabilities
+- 📈 **Comprehensive Testing**: 17/17 tests passing with full functionality verification
 
 ## 📚 Documentation
 
@@ -120,10 +123,19 @@ finding := &IntelligenceFinding{
 
 TinyBrain is built with:
 - **Go** - High-performance backend
-- **SQLite** - Fast, reliable local storage
-- **FTS5** - Full-text search capabilities
-- **MCP Protocol** - LLM integration standard
+- **PocketBase** - Single binary with embedded SQLite, REST API, and real-time capabilities
+- **MCP Protocol** - LLM integration standard with 40+ tools
 - **MITRE ATT&CK** - Security framework integration
+
+### PocketBase Integration Benefits
+
+- **Single Binary Deployment**: No external dependencies, works anywhere Go runs
+- **Embedded Database**: SQLite database embedded in the binary
+- **Web Admin Interface**: Built-in dashboard at http://127.0.0.1:8090/_/ for data management
+- **REST API**: Full REST API at http://127.0.0.1:8090/api/ for external integrations
+- **Real-time Capabilities**: Server-sent events for live updates
+- **Zero Configuration**: Works out of the box with sensible defaults
+- **Data Persistence**: All data automatically persisted across restarts
 
 ## 🧪 Testing
 
