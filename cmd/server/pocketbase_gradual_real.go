@@ -465,7 +465,7 @@ func (s *TinyBrainPocketBaseServer) handleListSessions(req MCPRequest) (MCPRespo
 			"session_id":  "mock-session-1",
 			"name":        "Mock Security Review",
 			"description": "A mock security review session",
-			"task_type": "security_review",
+			"task_type":   "security_review",
 			"status":      "active",
 		},
 		{
