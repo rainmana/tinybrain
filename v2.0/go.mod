@@ -1,4 +1,4 @@
-module github.com/rainmana/tinybrain
+module github.com/rainmana/tinybrain/v2
 
 go 1.23.0
 
