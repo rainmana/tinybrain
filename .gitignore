@@ -6,8 +6,8 @@
 *.dylib
 bin/
 dist/
-# server
-# tinybrain
+server
+tinybrain
 
 # Test binary, built with `go test -c`
 *.test

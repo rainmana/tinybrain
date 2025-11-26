@@ -1,0 +1,373 @@
+{
+  "metadata": {
+    "title": "Framework & Library Security Patterns Dataset for LLM Integration",
+    "version": "1.0",
+    "description": "Comprehensive framework and library vulnerability patterns optimized for LLM consumption",
+    "source": "Common frameworks and libraries with security patterns",
+    "authorization": "AUTHORIZED SECURITY ASSESSMENTS by CERTIFIED CYBERSECURITY PROFESSIONALS",
+    "disclaimer": "Security patterns evolve constantly - examples are illustrative and represent common patterns as of 2024",
+    "total_frameworks": 8,
+    "total_libraries": 15,
+    "languages_covered": ["Python", "JavaScript", "Java", "C#", "PHP"]
+  },
+  "frameworks": {
+    "Django": {
+      "language": "Python",
+      "version": "4.x",
+      "patterns": {
+        "CWE-89": {
+          "name": "SQL Injection in Django ORM",
+          "severity": "High",
+          "vulnerable_pattern": "cursor.execute(f'SELECT * FROM auth_user WHERE id = {user_id}')",
+          "secure_pattern": "User.objects.get(id=user_id)",
+          "exploitation": "Database access, data theft",
+          "remediation": "Use Django ORM, avoid raw SQL",
+          "tinybrain_tags": ["django", "sql-injection", "orm", "high", "cwe-89"],
+          "priority": 9,
+          "confidence": 0.9
+        },
+        "CWE-79": {
+          "name": "XSS in Django Templates",
+          "severity": "High",
+          "vulnerable_pattern": "render(request, 'template.html', {'content': user_input})",
+          "secure_pattern": "Auto-escaping enabled (Django default)",
+          "exploitation": "Session hijacking, credential theft",
+          "remediation": "Enable auto-escaping, use escape() for trusted content",
+          "tinybrain_tags": ["django", "xss", "templates", "high", "cwe-79"],
+          "priority": 8,
+          "confidence": 0.9
+        },
+        "CWE-434": {
+          "name": "File Upload in Django",
+          "severity": "High",
+          "vulnerable_pattern": "open(f'uploads/{uploaded_file.name}', 'wb')",
+          "secure_pattern": "FileSystemStorage with type validation",
+          "exploitation": "Malware upload, code execution",
+          "remediation": "Validate file types, use secure storage",
+          "tinybrain_tags": ["django", "file-upload", "malware", "high", "cwe-434"],
+          "priority": 8,
+          "confidence": 0.9
+        }
+      }
+    },
+    "Flask": {
+      "language": "Python",
+      "version": "2.x",
+      "patterns": {
+        "CWE-89": {
+          "name": "SQL Injection in Flask-SQLAlchemy",
+          "severity": "High",
+          "vulnerable_pattern": "db.engine.execute(f'SELECT * FROM users WHERE id = {user_id}')",
+          "secure_pattern": "User.query.get(user_id)",
+          "exploitation": "Database access, data theft",
+          "remediation": "Use SQLAlchemy ORM, parameterized queries",
+          "tinybrain_tags": ["flask", "sql-injection", "sqlalchemy", "high", "cwe-89"],
+          "priority": 9,
+          "confidence": 0.9
+        },
+        "CWE-352": {
+          "name": "CSRF in Flask",
+          "severity": "High",
+          "vulnerable_pattern": "No CSRF protection on POST routes",
+          "secure_pattern": "Flask-WTF CSRF protection",
+          "exploitation": "Unauthorized actions, account takeover",
+          "remediation": "Use Flask-WTF CSRFProtect",
+          "tinybrain_tags": ["flask", "csrf", "web-security", "high", "cwe-352"],
+          "priority": 8,
+          "confidence": 0.9
+        }
+      }
+    },
+    "Express.js": {
+      "language": "JavaScript",
+      "version": "4.x",
+      "patterns": {
+        "CWE-89": {
+          "name": "SQL Injection in Express",
+          "severity": "High",
+          "vulnerable_pattern": "connection.query(`SELECT * FROM users WHERE id = ${req.params.id}`)",
+          "secure_pattern": "connection.query('SELECT * FROM users WHERE id = ?', [req.params.id])",
+          "exploitation": "Database access, data theft",
+          "remediation": "Use parameterized queries, avoid string concatenation",
+          "tinybrain_tags": ["express", "sql-injection", "nodejs", "high", "cwe-89"],
+          "priority": 9,
+          "confidence": 0.9
+        },
+        "CWE-79": {
+          "name": "XSS in Express",
+          "severity": "High",
+          "vulnerable_pattern": "res.send(`<h1>Search results for: ${query}</h1>`)",
+          "secure_pattern": "res.send(`<h1>Search results for: ${escapeHtml(query)}</h1>`)",
+          "exploitation": "Session hijacking, credential theft",
+          "remediation": "Use output encoding, escape HTML",
+          "tinybrain_tags": ["express", "xss", "nodejs", "high", "cwe-79"],
+          "priority": 8,
+          "confidence": 0.9
+        }
+      }
+    },
+    "React": {
+      "language": "JavaScript",
+      "version": "18.x",
+      "patterns": {
+        "CWE-79": {
+          "name": "XSS in React",
+          "severity": "High",
+          "vulnerable_pattern": "<div dangerouslySetInnerHTML={{ __html: userContent }} />",
+          "secure_pattern": "<div>{userContent}</div> // React auto-escapes",
+          "exploitation": "Session hijacking, credential theft",
+          "remediation": "Use React's built-in XSS protection, sanitize with DOMPurify",
+          "tinybrain_tags": ["react", "xss", "frontend", "high", "cwe-79"],
+          "priority": 8,
+          "confidence": 0.9
+        }
+      }
+    },
+    "Spring": {
+      "language": "Java",
+      "version": "6.x",
+      "patterns": {
+        "CWE-89": {
+          "name": "SQL Injection in Spring JDBC",
+          "severity": "High",
+          "vulnerable_pattern": "jdbcTemplate.queryForObject(\"SELECT * FROM users WHERE id = \" + userId, User.class)",
+          "secure_pattern": "jdbcTemplate.queryForObject(\"SELECT * FROM users WHERE id = ?\", new Object[]{userId}, User.class)",
+          "exploitation": "Database access, data theft",
+          "remediation": "Use parameterized queries, avoid string concatenation",
+          "tinybrain_tags": ["spring", "sql-injection", "jdbc", "high", "cwe-89"],
+          "priority": 9,
+          "confidence": 0.9
+        },
+        "CWE-502": {
+          "name": "Deserialization in Spring",
+          "severity": "Critical",
+          "vulnerable_pattern": "ois.readObject() // ObjectInputStream",
+          "secure_pattern": "Use Jackson with safe configuration",
+          "exploitation": "Remote code execution",
+          "remediation": "Disable polymorphic deserialization, use safe libraries",
+          "tinybrain_tags": ["spring", "deserialization", "rce", "critical", "cwe-502"],
+          "priority": 10,
+          "confidence": 0.95
+        }
+      }
+    },
+    "ASP.NET Core": {
+      "language": "C#",
+      "version": "7.x",
+      "patterns": {
+        "CWE-89": {
+          "name": "SQL Injection in Entity Framework",
+          "severity": "High",
+          "vulnerable_pattern": "context.Users.FromSqlRaw($"SELECT * FROM Users WHERE Id = {userId}")",
+          "secure_pattern": "context.Users.Where(u => u.Id == userId).FirstOrDefault()",
+          "exploitation": "Database access, data theft",
+          "remediation": "Use Entity Framework LINQ, avoid raw SQL",
+          "tinybrain_tags": ["aspnet", "sql-injection", "entity-framework", "high", "cwe-89"],
+          "priority": 9,
+          "confidence": 0.9
+        },
+        "CWE-79": {
+          "name": "XSS in Razor Views",
+          "severity": "High",
+          "vulnerable_pattern": "@Html.Raw(Model.UserContent)",
+          "secure_pattern": "@Model.UserContent // Auto-encoding",
+          "exploitation": "Session hijacking, credential theft",
+          "remediation": "Use auto-encoding, Html.Encode() for trusted content",
+          "tinybrain_tags": ["aspnet", "xss", "razor", "high", "cwe-79"],
+          "priority": 8,
+          "confidence": 0.9
+        }
+      }
+    },
+    "Laravel": {
+      "language": "PHP",
+      "version": "10.x",
+      "patterns": {
+        "CWE-89": {
+          "name": "SQL Injection in Laravel Eloquent",
+          "severity": "High",
+          "vulnerable_pattern": "DB::select(\"SELECT * FROM users WHERE id = \" . $userId)",
+          "secure_pattern": "User::find($userId)",
+          "exploitation": "Database access, data theft",
+          "remediation": "Use Eloquent ORM, avoid raw SQL",
+          "tinybrain_tags": ["laravel", "sql-injection", "eloquent", "high", "cwe-89"],
+          "priority": 9,
+          "confidence": 0.9
+        },
+        "CWE-352": {
+          "name": "CSRF in Laravel",
+          "severity": "High",
+          "vulnerable_pattern": "No CSRF protection on POST routes",
+          "secure_pattern": "Route::post('/transfer', function() {})->middleware('csrf')",
+          "exploitation": "Unauthorized actions, account takeover",
+          "remediation": "Use Laravel CSRF middleware",
+          "tinybrain_tags": ["laravel", "csrf", "web-security", "high", "cwe-352"],
+          "priority": 8,
+          "confidence": 0.9
+        }
+      }
+    }
+  },
+  "libraries": {
+    "subprocess": {
+      "language": "Python",
+      "category": "System",
+      "patterns": {
+        "CWE-78": {
+          "name": "Command Injection with subprocess",
+          "severity": "Critical",
+          "vulnerable_pattern": "subprocess.run(f'cat {filename}', shell=True)",
+          "secure_pattern": "subprocess.run(['cat', filename], capture_output=True)",
+          "exploitation": "Remote code execution",
+          "remediation": "Avoid shell=True, use list arguments",
+          "tinybrain_tags": ["subprocess", "command-injection", "rce", "critical", "cwe-78"],
+          "priority": 10,
+          "confidence": 0.95
+        }
+      }
+    },
+    "pickle": {
+      "language": "Python",
+      "category": "Serialization",
+      "patterns": {
+        "CWE-502": {
+          "name": "Deserialization with pickle",
+          "severity": "Critical",
+          "vulnerable_pattern": "pickle.loads(data) // Dangerous!",
+          "secure_pattern": "json.loads(data) // Safe alternative",
+          "exploitation": "Remote code execution",
+          "remediation": "Use JSON for untrusted data, validate pickle sources",
+          "tinybrain_tags": ["pickle", "deserialization", "rce", "critical", "cwe-502"],
+          "priority": 10,
+          "confidence": 0.95
+        }
+      }
+    },
+    "child_process": {
+      "language": "JavaScript",
+      "category": "System",
+      "patterns": {
+        "CWE-78": {
+          "name": "Command Injection with child_process",
+          "severity": "Critical",
+          "vulnerable_pattern": "exec(`cat ${filename}`, callback)",
+          "secure_pattern": "spawn('cat', [filename])",
+          "exploitation": "Remote code execution",
+          "remediation": "Use spawn instead of exec, avoid shell",
+          "tinybrain_tags": ["child_process", "command-injection", "rce", "critical", "cwe-78"],
+          "priority": 10,
+          "confidence": 0.95
+        }
+      }
+    },
+    "MessageDigest": {
+      "language": "Java",
+      "category": "Cryptography",
+      "patterns": {
+        "CWE-327": {
+          "name": "Weak Hashing with MessageDigest",
+          "severity": "High",
+          "vulnerable_pattern": "MessageDigest.getInstance(\"MD5\")",
+          "secure_pattern": "BCryptPasswordEncoder.encode(password)",
+          "exploitation": "Password cracking, rainbow table attacks",
+          "remediation": "Use BCrypt, Argon2, or PBKDF2",
+          "tinybrain_tags": ["messagedigest", "weak-crypto", "hashing", "high", "cwe-327"],
+          "priority": 8,
+          "confidence": 0.9
+        }
+      }
+    },
+    "BinaryFormatter": {
+      "language": "C#",
+      "category": "Serialization",
+      "patterns": {
+        "CWE-502": {
+          "name": "Deserialization with BinaryFormatter",
+          "severity": "Critical",
+          "vulnerable_pattern": "formatter.Deserialize(stream) // Dangerous!",
+          "secure_pattern": "JsonSerializer.Deserialize<T>(json)",
+          "exploitation": "Remote code execution",
+          "remediation": "Use JSON serialization, avoid BinaryFormatter",
+          "tinybrain_tags": ["binaryformatter", "deserialization", "rce", "critical", "cwe-502"],
+          "priority": 10,
+          "confidence": 0.95
+        }
+      }
+    }
+  },
+  "search_index": {
+    "by_framework": {
+      "Django": ["CWE-89", "CWE-79", "CWE-434"],
+      "Flask": ["CWE-89", "CWE-352"],
+      "Express.js": ["CWE-89", "CWE-79"],
+      "React": ["CWE-79"],
+      "Spring": ["CWE-89", "CWE-502"],
+      "ASP.NET Core": ["CWE-89", "CWE-79"],
+      "Laravel": ["CWE-89", "CWE-352"]
+    },
+    "by_library": {
+      "subprocess": ["CWE-78"],
+      "pickle": ["CWE-502"],
+      "child_process": ["CWE-78"],
+      "MessageDigest": ["CWE-327"],
+      "BinaryFormatter": ["CWE-502"]
+    },
+    "by_language": {
+      "Python": ["Django", "Flask", "subprocess", "pickle"],
+      "JavaScript": ["Express.js", "React", "child_process"],
+      "Java": ["Spring", "MessageDigest"],
+      "C#": ["ASP.NET Core", "BinaryFormatter"],
+      "PHP": ["Laravel"]
+    },
+    "by_severity": {
+      "critical": ["CWE-78", "CWE-502"],
+      "high": ["CWE-89", "CWE-79", "CWE-352", "CWE-434", "CWE-327"]
+    }
+  },
+  "tinybrain_integration": {
+    "store_framework_finding": {
+      "template": {
+        "title": "[FRAMEWORK] [CWE-XXX] [Vulnerability Name] in [Location]",
+        "content": "AUTHORIZED SECURITY ASSESSMENT: [FRAMEWORK] [CWE-XXX] vulnerability identified in [LOCATION]. [DETAILED_DESCRIPTION]. EXPLOITATION CONFIRMED: [EXPLOITATION_DETAILS].",
+        "category": "vulnerability",
+        "priority": "[1-10]",
+        "confidence": "[0.0-1.0]",
+        "tags": ["[framework]", "[cwe-xxx]", "[vulnerability-type]", "[severity]", "authorized-testing"],
+        "source": "authorized-security-assessment",
+        "framework": "[FRAMEWORK_NAME]",
+        "library": "[LIBRARY_NAME]",
+        "cwe_id": "CWE-XXX",
+        "exploitation_status": "confirmed"
+      },
+      "example_commands": [
+        "Store Django CWE-89 SQL injection vulnerability in TinyBrain: Priority 9, affects user authentication",
+        "Store Express.js CWE-79 XSS vulnerability in TinyBrain: Priority 8, affects search functionality",
+        "Store Spring CWE-502 deserialization vulnerability in TinyBrain: Priority 10, affects API endpoints"
+      ]
+    },
+    "search_framework_patterns": {
+      "by_framework": [
+        "Search TinyBrain for Django-specific security patterns",
+        "Search TinyBrain for Express.js vulnerability patterns",
+        "Search TinyBrain for Spring security patterns"
+      ],
+      "by_library": [
+        "Search TinyBrain for subprocess command injection patterns",
+        "Search TinyBrain for pickle deserialization patterns",
+        "Search TinyBrain for MessageDigest weak hashing patterns"
+      ],
+      "by_language": [
+        "Search TinyBrain for Python framework security patterns",
+        "Search TinyBrain for JavaScript library vulnerability patterns",
+        "Search TinyBrain for Java framework security patterns"
+      ]
+    },
+    "correlate_findings": {
+      "commands": [
+        "Find similar framework patterns in TinyBrain based on vulnerability type",
+        "Correlate framework findings with library vulnerabilities in TinyBrain",
+        "Map framework patterns to CWE categories in TinyBrain"
+      ]
+    }
+  }
+}

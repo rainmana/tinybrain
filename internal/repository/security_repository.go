@@ -17,10 +17,8 @@ import (
 type SecurityRepositoryInterface interface {
 	StoreNVDDataset(ctx context.Context, cves []models.NVDCVE) error
 	StoreATTACKDataset(ctx context.Context, techniques []models.ATTACKTechnique, tactics []models.ATTACKTactic) error
-	StoreOWASPDataset(ctx context.Context, procedures []models.OWASPProcedure) error
 	QueryNVD(ctx context.Context, req models.NVDSearchRequest) ([]models.NVDCVE, int, error)
 	QueryATTACK(ctx context.Context, req models.ATTACKSearchRequest) ([]models.ATTACKTechnique, int, error)
-	QueryOWASP(ctx context.Context, req models.OWASPSearchRequest) ([]models.OWASPProcedure, int, error)
 	GetSecurityDataSummary(ctx context.Context) (map[string]models.SecurityDataSummary, error)
 	UpdateSecurityDataStatus(ctx context.Context, dataSource string, status string, totalRecords *int, errorMessage *string) error
 }
@@ -375,146 +373,6 @@ func (r *SecurityRepository) QueryATTACK(ctx context.Context, req models.ATTACKS
 	}
 
 	return techniques, totalCount, nil
-}
-
-// StoreOWASPDataset stores OWASP testing procedures in the database
-func (r *SecurityRepository) StoreOWASPDataset(ctx context.Context, procedures []models.OWASPProcedure) error {
-	r.logger.Info("Storing OWASP dataset", "count", len(procedures))
-
-	tx, err := r.db.GetDB().BeginTx(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to begin transaction: %v", err)
-	}
-	defer tx.Rollback()
-
-	// Clear existing data
-	if _, err := tx.ExecContext(ctx, "DELETE FROM owasp_procedures"); err != nil {
-		return fmt.Errorf("failed to clear existing OWASP data: %v", err)
-	}
-
-	stmt, err := tx.PrepareContext(ctx, `
-		INSERT INTO owasp_procedures (
-			id, category, subcategory, title, description, objective, how_to_test,
-			tools, references, severity, created_at, updated_at
-		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-	`)
-	if err != nil {
-		return fmt.Errorf("failed to prepare OWASP insert statement: %v", err)
-	}
-	defer stmt.Close()
-
-	for _, procedure := range procedures {
-		toolsJSON, _ := json.Marshal(procedure.Tools)
-		referencesJSON, _ := json.Marshal(procedure.References)
-
-		_, err := stmt.ExecContext(ctx,
-			procedure.ID, procedure.Category, procedure.Subcategory, procedure.Title,
-			procedure.Description, procedure.Objective, procedure.HowToTest,
-			string(toolsJSON), string(referencesJSON), procedure.Severity,
-			procedure.CreatedAt, procedure.UpdatedAt,
-		)
-		if err != nil {
-			return fmt.Errorf("failed to insert OWASP procedure %s: %v", procedure.ID, err)
-		}
-	}
-
-	if err := tx.Commit(); err != nil {
-		return fmt.Errorf("failed to commit OWASP transaction: %v", err)
-	}
-
-	r.logger.Info("OWASP dataset stored successfully", "count", len(procedures))
-	return nil
-}
-
-// QueryOWASP searches OWASP data based on criteria
-func (r *SecurityRepository) QueryOWASP(ctx context.Context, req models.OWASPSearchRequest) ([]models.OWASPProcedure, int, error) {
-	var conditions []string
-	var args []interface{}
-
-	// Build WHERE clause
-	if req.Category != nil {
-		conditions = append(conditions, "category = ?")
-		args = append(args, *req.Category)
-	}
-
-	if req.VulnerabilityType != nil {
-		conditions = append(conditions, "title LIKE ?")
-		args = append(args, "%"+*req.VulnerabilityType+"%")
-	}
-
-	if req.Severity != nil {
-		conditions = append(conditions, "severity = ?")
-		args = append(args, *req.Severity)
-	}
-
-	if req.Query != nil {
-		conditions = append(conditions, "(title LIKE ? OR description LIKE ?)")
-		args = append(args, "%"+*req.Query+"%", "%"+*req.Query+"%")
-	}
-
-	// Build query
-	whereClause := ""
-	if len(conditions) > 0 {
-		whereClause = "WHERE " + strings.Join(conditions, " AND ")
-	}
-
-	// Count total results
-	countQuery := "SELECT COUNT(*) FROM owasp_procedures " + whereClause
-	var totalCount int
-	err := r.db.GetDB().QueryRowContext(ctx, countQuery, args...).Scan(&totalCount)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to count OWASP results: %v", err)
-	}
-
-	// Get results with pagination
-	limit := req.Limit
-	if limit <= 0 {
-		limit = 10
-	}
-	offset := req.Offset
-	if offset < 0 {
-		offset = 0
-	}
-
-	query := fmt.Sprintf(`
-		SELECT id, category, subcategory, title, description, objective, how_to_test,
-		       tools, references, severity, created_at, updated_at
-		FROM owasp_procedures %s
-		ORDER BY category, title
-		LIMIT ? OFFSET ?
-	`, whereClause)
-
-	args = append(args, limit, offset)
-
-	rows, err := r.db.GetDB().QueryContext(ctx, query, args...)
-	if err != nil {
-		return nil, 0, fmt.Errorf("failed to query OWASP data: %v", err)
-	}
-	defer rows.Close()
-
-	var procedures []models.OWASPProcedure
-	for rows.Next() {
-		var procedure models.OWASPProcedure
-		var toolsJSON, referencesJSON string
-
-		err := rows.Scan(
-			&procedure.ID, &procedure.Category, &procedure.Subcategory, &procedure.Title,
-			&procedure.Description, &procedure.Objective, &procedure.HowToTest,
-			&toolsJSON, &referencesJSON, &procedure.Severity,
-			&procedure.CreatedAt, &procedure.UpdatedAt,
-		)
-		if err != nil {
-			return nil, 0, fmt.Errorf("failed to scan OWASP row: %v", err)
-		}
-
-		// Parse JSON fields
-		json.Unmarshal([]byte(toolsJSON), &procedure.Tools)
-		json.Unmarshal([]byte(referencesJSON), &procedure.References)
-
-		procedures = append(procedures, procedure)
-	}
-
-	return procedures, totalCount, nil
 }
 
 // GetSecurityDataSummary returns a summary of security data
