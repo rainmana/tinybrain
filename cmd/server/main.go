@@ -372,10 +372,8 @@ func (s *TinyBrainPocketBaseServer) handleSearchMemories(req MCPRequest) (MCPRes
 	}
 
 	query, _ := params["query"].(string)
-	_ = 20
-	if l, ok := params["limit"].(float64); ok {
-		_ = int(l)
-	}
+	// Note: limit parameter will be used when real database operations are implemented
+	_ = params["limit"] // Acknowledge parameter exists but not used in mock
 
 	// Return mock response for now
 	results := make([]map[string]interface{}, 0)
@@ -454,10 +452,8 @@ func (s *TinyBrainPocketBaseServer) handleListSessions(req MCPRequest) (MCPRespo
 		}, nil
 	}
 
-	_ = 50
-	if l, ok := params["limit"].(float64); ok {
-		_ = int(l)
-	}
+	// Note: limit parameter will be used when real database operations are implemented
+	_ = params["limit"] // Acknowledge parameter exists but not used in mock
 
 	// Return mock response for now
 	results := []map[string]interface{}{
