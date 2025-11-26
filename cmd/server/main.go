@@ -62,8 +62,16 @@ func (s *TinyBrainPocketBaseServer) setupCustomRoutes() {
 				return re.BadRequestError("Invalid MCP request", err)
 			}
 
+			// Get request info, handle error appropriately
+			requestInfo, err := re.RequestInfo()
+			if err != nil {
+				// Log the error but continue with nil requestInfo
+				// handleMCPRequest doesn't currently use requestInfo, so this is safe
+				s.logger.Printf("Warning: Failed to get request info: %v", err)
+				requestInfo = nil
+			}
+
 			// Process through MCP handler
-			requestInfo, _ := re.RequestInfo()
 			response, err := s.handleMCPRequest(requestInfo, mcpRequest)
 			if err != nil {
 				return re.InternalServerError("MCP processing failed", err)

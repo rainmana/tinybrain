@@ -1,9 +1,10 @@
 # TinyBrain 🧠
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-[![Go Version](https://img.shields.io/badge/Go-1.21+-blue.svg)](https://golang.org/)
+[![Go Version](https://img.shields.io/badge/Go-1.24+-blue.svg)](https://golang.org/)
 [![MCP Protocol](https://img.shields.io/badge/MCP-Protocol-green.svg)](https://modelcontextprotocol.io/)
 [![Security Focused](https://img.shields.io/badge/Security-Focused-red.svg)](https://github.com/rainmana/tinybrain)
+[![Version](https://img.shields.io/badge/version-v1.2.1-blue.svg)](https://github.com/rainmana/tinybrain/releases)
 
 **Security-Focused LLM Memory Storage with Intelligence Gathering, Reverse Engineering, and MITRE ATT&CK Integration**
 
@@ -65,13 +66,15 @@ TinyBrain is a comprehensive memory storage system designed specifically for sec
 - **Context Summaries**: Provides relevant memory summaries for current tasks
 
 ### High Performance & Reliability
-- **PocketBase Backend**: Single binary with embedded SQLite, REST API, and real-time capabilities
+- **PocketBase Backend**: Single binary with embedded SQLite, REST API, and real-time capabilities (v1.2.1+)
 - **Admin Dashboard**: Web-based interface for data management and visualization at http://127.0.0.1:8090/_/
+- **MCP Endpoint**: Custom MCP protocol endpoint at http://127.0.0.1:8090/mcp
 - **Real-time Updates**: Server-sent events for live memory updates
 - **Optimized Queries**: Indexed searches and efficient relationship traversal
 - **Transaction Safety**: ACID compliance for data integrity
 - **Concurrent Access**: Thread-safe operations for multiple LLM interactions
 - **Zero Configuration**: Works out of the box with minimal setup
+- **Mock Implementation**: Current version (v1.2.1) provides mock responses; real database operations coming in future releases
 
 ### AI-Enhanced Search & Intelligence
 - **Semantic Search**: AI-powered memory search using embeddings for conceptual similarity
@@ -87,11 +90,12 @@ TinyBrain is a comprehensive memory storage system designed specifically for sec
 - **Notification Management**: Mark notifications as read, filter by session, priority-based sorting
 
 ### Developer Experience
-- **Simple Installation**: `go install` or `go build`
+- **Simple Installation**: `go install github.com/rainmana/tinybrain/cmd/server@latest`
 - **Comprehensive Logging**: Detailed logging with structured output
-- **Extensive Testing**: 90%+ test coverage with benchmarks
+- **Extensive Testing**: Full test coverage for all MCP tool handlers
 - **Docker Support**: Containerized deployment ready
 - **40 MCP Tools**: Complete API for all memory management operations
+- **PocketBase Integration**: Single binary with admin dashboard and REST API
 
 ## 🛠️ Complete MCP Tool Set (40 Tools)
 
@@ -195,15 +199,20 @@ Our security patterns cover 10 major programming languages with language-specifi
 # Method 1: Install from source (recommended)
 go install github.com/rainmana/tinybrain/cmd/server@latest
 
+# The binary will be installed as 'server' in your $GOPATH/bin or $GOBIN
+# Make sure $GOPATH/bin or $GOBIN is in your PATH
+
 # Method 2: Clone and build locally
 git clone https://github.com/rainmana/tinybrain.git
 cd tinybrain
-make build
+go build -o server ./cmd/server
 
 # Method 3: Docker
 docker pull rainmana/tinybrain:latest
-docker run -p 8080:8080 rainmana/tinybrain
+docker run -p 8090:8090 rainmana/tinybrain
 ```
+
+**Note**: The latest version (v1.2.1+) includes the PocketBase backend. If you encounter build errors with older versions, ensure you're using `@latest` or `@v1.2.1`.
 
 ### Pre-built Binaries
 Download from [Releases](https://github.com/rainmana/tinybrain/releases)
@@ -211,26 +220,33 @@ Download from [Releases](https://github.com/rainmana/tinybrain/releases)
 ### Basic Usage
 
 ```bash
-# Start the server (uses ~/.tinybrain by default)
-tinybrain serve --dir ~/.tinybrain
+# Start the server (uses ./pb_data by default for PocketBase)
+server serve
+
+# Or specify a custom data directory
+server serve --dir /path/to/your/data
 
 # Access admin dashboard
 open http://127.0.0.1:8090/_/
 
-# Or with custom data directory
-tinybrain serve --dir /path/to/your/data
+# The MCP endpoint is available at:
+# http://127.0.0.1:8090/mcp
 ```
+
+**Important**: With PocketBase, the data directory structure is different from the previous SQLite-only version. PocketBase stores its data in a `pb_data` subdirectory within the specified directory (or `./pb_data` by default).
 
 ### PocketBase Integration Features
 
-TinyBrain now uses PocketBase as its backend, providing:
+TinyBrain uses PocketBase as its backend (v1.2.1+), providing:
 
 - **Single Binary**: Everything in one executable with zero configuration
-- **Admin Dashboard**: Web interface at http://127.0.0.1:8090/_/ for data management
+- **Admin Dashboard**: Web interface at http://127.0.0.1:8090/_/ for data management and visualization
 - **REST API**: Full REST API at http://127.0.0.1:8090/api/ for external integrations
 - **Real-time Updates**: Server-sent events for live memory updates
-- **Data Persistence**: All data persists across server restarts
-- **Comprehensive Testing**: 17/17 tests passing with full functionality verification
+- **Data Persistence**: All data persists across server restarts in `pb_data` directory
+- **MCP Endpoint**: Custom MCP protocol endpoint at http://127.0.0.1:8090/mcp
+- **Comprehensive Testing**: Full test coverage with all MCP tools verified
+- **Mock Implementation**: Current version provides mock responses for all MCP tools, with real database operations to be implemented in future releases
 
 ### Intelligence Gathering Example
 
@@ -278,17 +294,29 @@ finding := &IntelligenceFinding{
 If you encounter issues with `go install`, try these solutions:
 
 ```bash
+# If you get "main redeclared" errors, ensure you're using v1.2.1 or later
+# Older versions (v1.2.0) had duplicate files that caused build errors
+go install github.com/rainmana/tinybrain/cmd/server@v1.2.1
+
 # If you get authentication errors, use direct clone method
 git clone https://github.com/rainmana/tinybrain.git
 cd tinybrain
-go build -o tinybrain cmd/server/main.go
+go build -o server ./cmd/server
 
 # If repository is private, ensure you have access
 git config --global url."git@github.com:".insteadOf "https://github.com/"
 
 # For Go module proxy issues, use direct mode
 GOPROXY=direct go install github.com/rainmana/tinybrain/cmd/server@latest
+
+# For checksum database errors (temporary issue with new releases)
+GOSUMDB=off go install github.com/rainmana/tinybrain/cmd/server@latest
 ```
+
+**Common Issues**:
+- **"main redeclared" error**: You're using an old version. Use `@v1.2.1` or `@latest`
+- **Binary not found**: Ensure `$GOPATH/bin` or `$GOBIN` is in your PATH
+- **Checksum errors**: Wait a few minutes after a new release, or temporarily use `GOSUMDB=off`
 
 ### MCP Client Configuration
 
@@ -298,15 +326,17 @@ Add to your MCP client configuration (e.g., Claude Desktop):
 {
   "mcpServers": {
     "tinybrain": {
-      "command": "tinybrain",
-      "args": [],
+      "command": "server",
+      "args": ["serve"],
       "env": {
-        "TINYBRAIN_DB_PATH": "~/.tinybrain/memory.db"
+        "POCKETBASE_DATA_DIR": "~/.tinybrain"
       }
     }
   }
 }
 ```
+
+**Note**: The binary name is `server` (from `cmd/server`), not `tinybrain`. PocketBase will create a `pb_data` subdirectory in the specified data directory.
 
 ## 📚 Documentation
 
@@ -430,11 +460,13 @@ The documentation includes:
 ## 🏗️ Architecture
 
 TinyBrain is built with:
-- **Go** - High-performance backend
-- **PocketBase** - Single binary with embedded SQLite, REST API, and real-time capabilities
+- **Go 1.24+** - High-performance backend
+- **PocketBase v0.30.4** - Single binary with embedded SQLite, REST API, and real-time capabilities
 - **MCP Protocol** - LLM integration standard with 40+ tools
 - **MITRE ATT&CK** - Security framework integration
 - **Jekyll** - Documentation site with Minimal theme
+
+**Current Version**: v1.2.1 (PocketBase backend with mock MCP tool responses)
 
 ### PocketBase Integration Benefits
 
@@ -504,16 +536,28 @@ docker run --rm -it \
 
 ### Environment Variables
 
-- `TINYBRAIN_DB_PATH`: Path to SQLite database (default: `~/.tinybrain/memory.db`)
+- `POCKETBASE_DATA_DIR`: Path to PocketBase data directory (default: `./pb_data`)
 - `TINYBRAIN_LOG_LEVEL`: Log level (debug, info, warn, error)
 
-### Database Configuration
+### PocketBase Configuration
 
-The SQLite database is configured with:
-- WAL mode for better concurrency
-- Foreign key constraints enabled
-- Full-text search enabled
-- Optimized pragma settings
+PocketBase provides:
+- **Embedded SQLite**: Database stored in `pb_data/data.db` within the data directory
+- **Admin Dashboard**: Accessible at http://127.0.0.1:8090/_/ after first run
+- **REST API**: Full REST API at http://127.0.0.1:8090/api/
+- **Collections**: Automatically managed by PocketBase
+- **Zero Configuration**: Works out of the box with sensible defaults
+
+### Data Directory Structure
+
+```
+~/.tinybrain/
+├── pb_data/
+│   ├── data.db          # PocketBase SQLite database
+│   ├── logs.db          # PocketBase logs
+│   └── storage/         # File storage (if used)
+└── ...
+```
 
 ## 🛡️ Security Datasets & Templates
 
