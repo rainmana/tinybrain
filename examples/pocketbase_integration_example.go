@@ -1,3 +1,5 @@
+// +build ignore
+
 package main
 
 import (
@@ -64,16 +66,15 @@ func (s *TinyBrainPocketBaseServer) setupPocketBaseHooks() {
 
 func (s *TinyBrainPocketBaseServer) setupCustomRoutes() {
 	s.app.OnServe().BindFunc(func(e *core.ServeEvent) error {
-		// MCP endpoint - keep your existing MCP functionality
+		// MCP endpoint
 		e.Router.POST("/mcp", func(re *core.RequestEvent) error {
-			// Handle MCP JSON-RPC requests
 			var mcpRequest MCPRequest
 			if err := re.BindBody(&mcpRequest); err != nil {
 				return re.BadRequestError("Invalid MCP request", err)
 			}
 
-			// Process through your existing MCP server
-			response, err := s.mcp.HandleRequest(context.Background(), mcpRequest)
+			requestInfo, _ := re.RequestInfo()
+			response, err := s.mcp.HandleRequest(requestInfo, mcpRequest)
 			if err != nil {
 				return re.InternalServerError("MCP processing failed", err)
 			}
@@ -81,96 +82,42 @@ func (s *TinyBrainPocketBaseServer) setupCustomRoutes() {
 			return re.JSON(http.StatusOK, response)
 		})
 
-		// Enhanced security data endpoints using PocketBase
+		// Security data endpoints
 		e.Router.GET("/api/security/nvd", func(re *core.RequestEvent) error {
-			requestInfo, _ := re.RequestInfo()
-			if requestInfo.Auth == nil {
-				return re.UnauthorizedError("Authentication required", nil)
-			}
-
-			// Use PocketBase's built-in filtering
-			severity := re.Request.URL.Query().Get("severity")
-			filter := ""
-			if severity != "" {
-				filter = `severity = "` + severity + `"`
-			}
-
-			// Query using PocketBase's built-in API
-			records, err := s.app.RecordQuery("nvd_cves").
-				AndWhere(dbx.NewExp(filter)).
-				Limit(100).
-				All()
+			// Query NVD data using PocketBase
+			filter := "severity = 'CRITICAL'"
+			records, err := s.app.RecordQuery("nvd_cves").AndWhere(dbx.NewExp(filter)).Limit(100).All()
 			if err != nil {
 				return re.InternalServerError("Failed to query NVD data", err)
 			}
 
 			return re.JSON(http.StatusOK, records)
-		}, apis.RequireAuth())
+		}, apis.RequireRecordAuth())
 
-		// Real-time memory search endpoint
+		// Memory search endpoint
 		e.Router.GET("/api/memories/search", func(re *core.RequestEvent) error {
 			query := re.Request.URL.Query().Get("q")
 			if query == "" {
 				return re.BadRequestError("Query parameter required", nil)
 			}
 
-			// Use PocketBase's full-text search
-			records, err := s.app.RecordQuery("memories").
-				AndWhere(dbx.NewExp("content LIKE {:query}", dbx.Params{"query": "%" + query + "%"})).
-				Limit(50).
-				All()
+			// Search memories using PocketBase
+			filter := fmt.Sprintf("title ~ '%s' OR content ~ '%s'", query, query)
+			records, err := s.app.RecordQuery("memories").AndWhere(dbx.NewExp(filter)).Limit(20).All()
 			if err != nil {
-				return re.InternalServerError("Search failed", err)
+				return re.InternalServerError("Failed to search memories", err)
 			}
 
 			return re.JSON(http.StatusOK, records)
-		}, apis.RequireAuth())
-
-		// Security knowledge hub endpoints
-		e.Router.GET("/api/security/attack", func(re *core.RequestEvent) error {
-			// Query ATT&CK techniques using PocketBase
-			records, err := s.app.RecordQuery("attack_techniques").
-				AndWhere(dbx.NewExp("tactic = {:tactic}", dbx.Params{"tactic": re.Request.URL.Query().Get("tactic")})).
-				Limit(100).
-				All()
-			if err != nil {
-				return re.InternalServerError("Failed to query ATT&CK data", err)
-			}
-
-			return re.JSON(http.StatusOK, records)
-		}, apis.RequireAuth())
+		})
 
 		return e.Next()
 	})
 }
 
-func (s *TinyBrainPocketBaseServer) Start() error {
-	// Start PocketBase (includes database, REST API, real-time, admin UI)
-	return s.app.Start()
-}
-
-// Your existing MCP server (simplified example)
+// MCP Server interface (your existing implementation)
 type MCPServer struct {
-	// Your existing MCP implementation
-}
-
-type MCPRequest struct {
-	JSONRPC string      `json:"jsonrpc"`
-	ID      int         `json:"id"`
-	Method  string      `json:"method"`
-	Params  interface{} `json:"params"`
-}
-
-type MCPResponse struct {
-	JSONRPC string      `json:"jsonrpc"`
-	ID      int         `json:"id"`
-	Result  interface{} `json:"result,omitempty"`
-	Error   *MCPError   `json:"error,omitempty"`
-}
-
-type MCPError struct {
-	Code    int    `json:"code"`
-	Message string `json:"message"`
+	// Your existing MCP server fields
 }
 
 func NewMCPServer() *MCPServer {
@@ -243,3 +190,23 @@ func main() {
 		log.Fatal(err)
 	}
 }
+
+type MCPRequest struct {
+	JSONRPC string      `json:"jsonrpc"`
+	ID      int         `json:"id"`
+	Method  string      `json:"method"`
+	Params  interface{} `json:"params"`
+}
+
+type MCPResponse struct {
+	JSONRPC string      `json:"jsonrpc"`
+	ID      int         `json:"id"`
+	Result  interface{} `json:"result,omitempty"`
+	Error   *MCPError   `json:"error,omitempty"`
+}
+
+type MCPError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
+}
+
