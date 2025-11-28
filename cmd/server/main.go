@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"fmt"
 	"strings"
 
 	"github.com/pocketbase/pocketbase"
@@ -620,11 +621,61 @@ func (s *TinyBrainPocketBaseServer) handleQueryOWASP(req MCPRequest) (MCPRespons
 	}, nil
 }
 
+func printUsage() {
+	fmt.Println()
+	fmt.Println("🧠 TinyBrain MCP Server")
+	fmt.Println("Security-focused LLM memory storage with intelligence gathering")
+	fmt.Println()
+	
+	fmt.Println("USAGE:")
+	fmt.Println("  server [command] [flags]")
+	fmt.Println()
+	
+	fmt.Println("COMMANDS:")
+	fmt.Println("  serve     Start the TinyBrain server (default)")
+	fmt.Println("  --help    Show this help message")
+	fmt.Println()
+	
+	fmt.Println("FLAGS:")
+	fmt.Println("  --http=<address>  HTTP bind address (default: 127.0.0.1:8090)")
+	fmt.Println("  --dir=<path>      Data directory (default: ~/.tinybrain)")
+	fmt.Println()
+	
+	fmt.Println("EXAMPLES:")
+	fmt.Println("  server                              # Start with defaults")
+	fmt.Println("  server --http=127.0.0.1:9000        # Custom port")
+	fmt.Println("  server serve --http=0.0.0.0:8090    # Bind to all interfaces")
+	fmt.Println("  TINYBRAIN_HTTP=:9000 server         # Port via environment")
+	fmt.Println()
+	
+	fmt.Println("ENVIRONMENT:")
+	fmt.Println("  TINYBRAIN_HTTP      HTTP bind address")
+	fmt.Println("  TINYBRAIN_DATA_DIR  Data directory")
+	fmt.Println()
+	
+	fmt.Println("For more info: https://github.com/rainmana/tinybrain")
+}
+
+
 func main() {
+	// Handle --help or -h
+	if len(os.Args) > 1 && (os.Args[1] == "--help" || os.Args[1] == "-h" || os.Args[1] == "help") {
+		printUsage()
+		return
+	}
+	
+	// If no args provided, default to "serve"
+	if len(os.Args) == 1 {
+		os.Args = append(os.Args, "serve")
+	}
+	
+	// If first arg isn't "serve", assume they want to serve with those flags
+	if os.Args[1] != "serve" {
+		os.Args = append([]string{os.Args[0], "serve"}, os.Args[1:]...)
+	}
+	
 	// Create the combined TinyBrain + PocketBase server
 	app := pocketbase.New()
-	
-	// Set up logging
 	logger := log.New(os.Stderr, "TinyBrain ", log.LstdFlags)
 	
 	server := &TinyBrainPocketBaseServer{
@@ -632,47 +683,38 @@ func main() {
 		logger: logger,
 	}
 	
-	// Set up PocketBase hooks and custom routes
+	// Setup before serving
 	server.setupPocketBaseHooks()
 	server.setupCustomRoutes()
 	server.setupCollections()
 	
-	// Get HTTP address from environment variable if set
-	// This can be overridden by command-line --http flag
+	// Handle TINYBRAIN_HTTP environment variable
 	httpAddr := os.Getenv("TINYBRAIN_HTTP")
 	if httpAddr != "" {
-		logger.Printf("Using HTTP address from TINYBRAIN_HTTP: %s", httpAddr)
-		// Inject the --http flag if not already present
 		hasHTTPFlag := false
 		for _, arg := range os.Args {
-			if strings.HasPrefix(arg, "--http") || strings.HasPrefix(arg, "-http") {
+			if strings.HasPrefix(arg, "--http") {
 				hasHTTPFlag = true
 				break
 			}
 		}
 		if !hasHTTPFlag {
 			os.Args = append(os.Args, "--http="+httpAddr)
+			logger.Printf("Using HTTP address from TINYBRAIN_HTTP: %s", httpAddr)
 		}
 	}
 	
-	// Set up data directory (PocketBase will use ./pb_data by default within this directory)
+	// Setup data directory
 	dataDir := filepath.Join(os.Getenv("HOME"), ".tinybrain")
 	if err := os.MkdirAll(dataDir, 0755); err != nil {
 		logger.Fatalf("Failed to create data directory: %v", err)
 	}
 	
 	logger.Printf("TinyBrain data directory: %s", dataDir)
-	logger.Println("Starting TinyBrain with PocketBase backend")
-	logger.Println("Use --http=127.0.0.1:PORT to customize port (default: 127.0.0.1:8090)")
-	logger.Println("Use TINYBRAIN_HTTP=127.0.0.1:PORT environment variable to set default port")
+	logger.Println("Starting TinyBrain MCP Server")
+	logger.Println("Run 'server --help' for usage information")
 	
-	// Execute PocketBase with command-line arguments
-	// This processes the built-in 'serve' command with --http, --dir, etc.
-	// Usage examples:
-	//   server serve
-	//   server serve --http=127.0.0.1:9000
-	//   server serve --dir=~/.tinybrain --http=0.0.0.0:8090
-	//   TINYBRAIN_HTTP=127.0.0.1:9090 server serve
+	// Execute PocketBase
 	if err := app.Execute(); err != nil {
 		log.Fatal(err)
 	}
