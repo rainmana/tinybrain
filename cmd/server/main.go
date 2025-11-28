@@ -1,11 +1,11 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/pocketbase/pocketbase"
 	"github.com/pocketbase/pocketbase/core"
@@ -620,28 +620,60 @@ func (s *TinyBrainPocketBaseServer) handleQueryOWASP(req MCPRequest) (MCPRespons
 	}, nil
 }
 
-func (s *TinyBrainPocketBaseServer) Start() error {
-	// Set up data directory
-	dataDir := filepath.Join(os.Getenv("HOME"), ".tinybrain")
-	if err := os.MkdirAll(dataDir, 0755); err != nil {
-		return fmt.Errorf("failed to create data directory: %w", err)
-	}
-
-	// Configure PocketBase
-	// Note: DataDir is set through command line flags, not directly
-
-	s.logger.Printf("Starting TinyBrain with PocketBase backend, data_dir: %s", dataDir)
-
-	// Start PocketBase (includes database, REST API, real-time, admin UI)
-	return s.app.Start()
-}
-
 func main() {
 	// Create the combined TinyBrain + PocketBase server
-	server := NewTinyBrainPocketBaseServer()
-
-	// Start the server (single binary with both MCP and PocketBase)
-	if err := server.Start(); err != nil {
+	app := pocketbase.New()
+	
+	// Set up logging
+	logger := log.New(os.Stderr, "TinyBrain ", log.LstdFlags)
+	
+	server := &TinyBrainPocketBaseServer{
+		app:    app,
+		logger: logger,
+	}
+	
+	// Set up PocketBase hooks and custom routes
+	server.setupPocketBaseHooks()
+	server.setupCustomRoutes()
+	server.setupCollections()
+	
+	// Get HTTP address from environment variable if set
+	// This can be overridden by command-line --http flag
+	httpAddr := os.Getenv("TINYBRAIN_HTTP")
+	if httpAddr != "" {
+		logger.Printf("Using HTTP address from TINYBRAIN_HTTP: %s", httpAddr)
+		// Inject the --http flag if not already present
+		hasHTTPFlag := false
+		for _, arg := range os.Args {
+			if strings.HasPrefix(arg, "--http") || strings.HasPrefix(arg, "-http") {
+				hasHTTPFlag = true
+				break
+			}
+		}
+		if !hasHTTPFlag {
+			os.Args = append(os.Args, "--http="+httpAddr)
+		}
+	}
+	
+	// Set up data directory (PocketBase will use ./pb_data by default within this directory)
+	dataDir := filepath.Join(os.Getenv("HOME"), ".tinybrain")
+	if err := os.MkdirAll(dataDir, 0755); err != nil {
+		logger.Fatalf("Failed to create data directory: %v", err)
+	}
+	
+	logger.Printf("TinyBrain data directory: %s", dataDir)
+	logger.Println("Starting TinyBrain with PocketBase backend")
+	logger.Println("Use --http=127.0.0.1:PORT to customize port (default: 127.0.0.1:8090)")
+	logger.Println("Use TINYBRAIN_HTTP=127.0.0.1:PORT environment variable to set default port")
+	
+	// Execute PocketBase with command-line arguments
+	// This processes the built-in 'serve' command with --http, --dir, etc.
+	// Usage examples:
+	//   server serve
+	//   server serve --http=127.0.0.1:9000
+	//   server serve --dir=~/.tinybrain --http=0.0.0.0:8090
+	//   TINYBRAIN_HTTP=127.0.0.1:9090 server serve
+	if err := app.Execute(); err != nil {
 		log.Fatal(err)
 	}
 }

@@ -62,7 +62,13 @@ run:
 # Run with development database
 run-dev:
 	@echo "Running $(BINARY_NAME) with development database..."
-	@TINYBRAIN_DB_PATH=./dev.db go run ./cmd/server
+	@TINYBRAIN_DB_PATH=./dev.db go run ./cmd/server serve
+
+# Run with custom port
+run-custom-port:
+	@echo "Running $(BINARY_NAME) on custom port..."
+	@echo "Usage: make run-custom-port PORT=9000"
+	@go run ./cmd/server serve --http=127.0.0.1:$(or $(PORT),9000)
 
 # Clean build artifacts
 clean:
@@ -159,6 +165,8 @@ help:
 	@echo "  docker-build - Build Docker image"
 	@echo "  docker-run   - Run Docker container"
 	@echo "  help         - Show this help"
+	@echo "  run-custom-port - Run with custom port (usage: make run-custom-port PORT=9000)"
 	@echo ""
 	@echo "Environment variables:"
 	@echo "  TINYBRAIN_DB_PATH - Path to SQLite database (default: ~/.tinybrain/memory.db)"
+	@echo "  TINYBRAIN_HTTP - HTTP bind address (default: 127.0.0.1:8090)"

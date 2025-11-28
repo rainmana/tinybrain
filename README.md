@@ -226,6 +226,15 @@ server serve
 # Or specify a custom data directory
 server serve --dir /path/to/your/data
 
+# Customize the port (default is 127.0.0.1:8090)
+server serve --http=127.0.0.1:9000
+
+# Or use environment variable
+TINYBRAIN_HTTP=127.0.0.1:9000 server serve
+
+# Combine options
+server serve --dir ~/.tinybrain --http=0.0.0.0:8090
+
 # Access admin dashboard
 open http://127.0.0.1:8090/_/
 
@@ -537,6 +546,7 @@ docker run --rm -it \
 ### Environment Variables
 
 - `POCKETBASE_DATA_DIR`: Path to PocketBase data directory (default: `./pb_data`)
+- `TINYBRAIN_HTTP`: HTTP server bind address (default: `127.0.0.1:8090`, e.g., `127.0.0.1:9000` or `0.0.0.0:8090`)
 - `TINYBRAIN_LOG_LEVEL`: Log level (debug, info, warn, error)
 
 ### PocketBase Configuration
