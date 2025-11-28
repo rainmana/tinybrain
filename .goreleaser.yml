@@ -29,7 +29,6 @@ builds:
       - -s -w
       - -X main.Version={{.Version}}
       - -X main.BuildTime={{.Date}}
-      - -X main.GoVersion={{.Env.GOVERSION}}
 
 archives:
   - id: tinybrain
