@@ -195,27 +195,56 @@ Our security patterns cover 10 major programming languages with language-specifi
 
 ### Installation
 
+#### Option 1: Pre-built Binaries (Recommended)
+
+Download the latest release for your platform from [Releases](https://github.com/rainmana/tinybrain/releases):
+
+- **macOS (Apple Silicon)**: `tinybrain_*_Darwin_arm64.tar.gz`
+- **macOS (Intel)**: `tinybrain_*_Darwin_x86_64.tar.gz`
+- **Linux (x86_64)**: `tinybrain_*_Linux_x86_64.tar.gz`
+- **Linux (ARM64)**: `tinybrain_*_Linux_arm64.tar.gz`
+- **Windows**: `tinybrain_*_Windows_x86_64.zip`
+
+Extract and run:
 ```bash
-# Method 1: Install from source (recommended)
+# Extract (Linux/macOS)
+tar -xzf tinybrain_*_*.tar.gz
+cd tinybrain_*
+
+# Make executable
+chmod +x server
+
+# Run
+./server serve
+```
+
+#### Option 2: Install from Source with go install
+
+```bash
+# Install latest version
 go install github.com/rainmana/tinybrain/cmd/server@latest
+
+# Install specific version
+go install github.com/rainmana/tinybrain/cmd/server@v1.2.2
 
 # The binary will be installed as 'server' in your $GOPATH/bin or $GOBIN
 # Make sure $GOPATH/bin or $GOBIN is in your PATH
+```
 
-# Method 2: Clone and build locally
+#### Option 3: Clone and Build Locally
+
+```bash
 git clone https://github.com/rainmana/tinybrain.git
 cd tinybrain
 go build -o server ./cmd/server
+```
 
-# Method 3: Docker
+#### Option 4: Docker
+
+```bash
 docker pull rainmana/tinybrain:latest
 docker run -p 8090:8090 rainmana/tinybrain
 ```
-
-**Note**: The latest version (v1.2.1+) includes the PocketBase backend. If you encounter build errors with older versions, ensure you're using `@latest` or `@v1.2.1`.
-
-### Pre-built Binaries
-Download from [Releases](https://github.com/rainmana/tinybrain/releases)
 
 ### Basic Usage
 
