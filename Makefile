@@ -18,23 +18,23 @@ all: build
 # Build the binary
 build:
 	@echo "Building $(BINARY_NAME)..."
-	@go build $(LDFLAGS) -o bin/$(BINARY_NAME) ./cmd/server
+	@go build $(LDFLAGS) -o bin/$(BINARY_NAME) ./cmd/tinybrain
 	@echo "Build complete: bin/$(BINARY_NAME)"
 
 # Build for multiple platforms
 build-all:
 	@echo "Building for multiple platforms..."
 	@mkdir -p bin
-	@GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)-linux-amd64 ./cmd/server
-	@GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)-darwin-amd64 ./cmd/server
-	@GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)-darwin-arm64 ./cmd/server
-	@GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)-windows-amd64.exe ./cmd/server
+	@GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)-linux-amd64 ./cmd/tinybrain
+	@GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)-darwin-amd64 ./cmd/tinybrain
+	@GOOS=darwin GOARCH=arm64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)-darwin-arm64 ./cmd/tinybrain
+	@GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)-windows-amd64.exe ./cmd/tinybrain
 	@echo "Multi-platform build complete"
 
 # Install the binary to GOPATH/bin
 install:
 	@echo "Installing $(BINARY_NAME)..."
-	@go install $(LDFLAGS) ./cmd/server
+	@go install $(LDFLAGS) ./cmd/tinybrain
 	@echo "Installation complete"
 
 # Run tests
@@ -57,18 +57,18 @@ bench:
 # Run the server
 run:
 	@echo "Running $(BINARY_NAME) server..."
-	@go run ./cmd/server
+	@go run ./cmd/tinybrain
 
 # Run with development database
 run-dev:
 	@echo "Running $(BINARY_NAME) with development database..."
-	@TINYBRAIN_DB_PATH=./dev.db go run ./cmd/server serve
+	@TINYBRAIN_DB_PATH=./dev.db go run ./cmd/tinybrain serve
 
 # Run with custom port
 run-custom-port:
 	@echo "Running $(BINARY_NAME) on custom port..."
 	@echo "Usage: make run-custom-port PORT=9000"
-	@go run ./cmd/server serve --http=127.0.0.1:$(or $(PORT),9000)
+	@go run ./cmd/tinybrain serve --http=127.0.0.1:$(or $(PORT),9000)
 
 # Clean build artifacts
 clean:

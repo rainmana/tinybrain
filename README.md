@@ -90,7 +90,7 @@ TinyBrain is a comprehensive memory storage system designed specifically for sec
 - **Notification Management**: Mark notifications as read, filter by session, priority-based sorting
 
 ### Developer Experience
-- **Simple Installation**: `go install github.com/rainmana/tinybrain/cmd/server@latest`
+- **Simple Installation**: `go install github.com/rainmana/tinybrain/cmd/tinybrain@latest`
 - **Comprehensive Logging**: Detailed logging with structured output
 - **Extensive Testing**: Full test coverage for all MCP tool handlers
 - **Docker Support**: Containerized deployment ready
@@ -212,22 +212,22 @@ tar -xzf tinybrain_*_*.tar.gz
 cd tinybrain_*
 
 # Make executable
-chmod +x server
+chmod +x tinybrain
 
 # Run
-./server serve
+./tinybrain serve
 ```
 
 #### Option 2: Install from Source with go install
 
 ```bash
 # Install latest version
-go install github.com/rainmana/tinybrain/cmd/server@latest
+go install github.com/rainmana/tinybrain/cmd/tinybrain@latest
 
 # Install specific version
-go install github.com/rainmana/tinybrain/cmd/server@v1.2.2
+go install github.com/rainmana/tinybrain/cmd/tinybrain@v1.2.2
 
-# The binary will be installed as 'server' in your $GOPATH/bin or $GOBIN
+# The binary will be installed as 'tinybrain' in your $GOPATH/bin or $GOBIN
 # Make sure $GOPATH/bin or $GOBIN is in your PATH
 ```
 
@@ -236,7 +236,7 @@ go install github.com/rainmana/tinybrain/cmd/server@v1.2.2
 ```bash
 git clone https://github.com/rainmana/tinybrain.git
 cd tinybrain
-go build -o server ./cmd/server
+go build -o tinybrain ./cmd/tinybrain
 ```
 
 #### Option 4: Docker
@@ -250,19 +250,19 @@ docker run -p 8090:8090 rainmana/tinybrain
 
 ```bash
 # Start the server (uses ./pb_data by default for PocketBase)
-server serve
+tinybrain serve
 
 # Or specify a custom data directory
-server serve --dir /path/to/your/data
+tinybrain serve --dir /path/to/your/data
 
 # Customize the port (default is 127.0.0.1:8090)
-server serve --http=127.0.0.1:9000
+tinybrain serve --http=127.0.0.1:9000
 
 # Or use environment variable
-TINYBRAIN_HTTP=127.0.0.1:9000 server serve
+TINYBRAIN_HTTP=127.0.0.1:9000 tinybrain serve
 
 # Combine options
-server serve --dir ~/.tinybrain --http=0.0.0.0:8090
+tinybrain serve --dir ~/.tinybrain --http=0.0.0.0:8090
 
 # Access admin dashboard
 open http://127.0.0.1:8090/_/
@@ -364,7 +364,7 @@ Add to your MCP client configuration (e.g., Claude Desktop):
 {
   "mcpServers": {
     "tinybrain": {
-      "command": "server",
+      "command": "tinybrain",
       "args": ["serve"],
       "env": {
         "POCKETBASE_DATA_DIR": "~/.tinybrain"
@@ -374,7 +374,7 @@ Add to your MCP client configuration (e.g., Claude Desktop):
 }
 ```
 
-**Note**: The binary name is `server` (from `cmd/server`), not `tinybrain`. PocketBase will create a `pb_data` subdirectory in the specified data directory.
+**Note**: The binary name is `tinybrain` (from `cmd/tinybrain`). PocketBase will create a `pb_data` subdirectory in the specified data directory.
 
 ## 📚 Documentation
 
