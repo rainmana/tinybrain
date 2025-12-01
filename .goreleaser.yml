@@ -6,12 +6,12 @@ version: 2
 before:
   hooks:
     # Run tests before building
-    - go test -v ./cmd/server
+    - go test -v ./cmd/tinybrain
 
 builds:
-  - id: server
-    main: ./cmd/server
-    binary: server
+  - id: tinybrain
+    main: ./cmd/tinybrain
+    binary: tinybrain
     env:
       - CGO_ENABLED=0
     goos:
@@ -87,7 +87,7 @@ release:
     
     **Using go install:**
     ```bash
-    go install github.com/rainmana/tinybrain/cmd/server@{{ .Tag }}
+    go install github.com/rainmana/tinybrain/cmd/tinybrain@{{ .Tag }}
     ```
     
     **Download pre-built binary:**
@@ -106,13 +106,13 @@ release:
     After downloading and extracting:
     ```bash
     # Make executable (Linux/macOS)
-    chmod +x server
+    chmod +x tinybrain
     
     # Run the server
-    ./server serve
+    ./tinybrain serve
     
     # Or with custom port
-    ./server serve --http=127.0.0.1:9000
+    ./tinybrain serve --http=127.0.0.1:9000
     ```
     
     For full documentation, visit the [README](https://github.com/rainmana/tinybrain).
