@@ -1,0 +1,264 @@
+name: Deploy Web Version
+
+on:
+  push:
+    branches:
+      - main
+      - staging
+  pull_request:
+    branches:
+      - main
+      - staging
+
+env:
+  GO_VERSION: '1.24'
+  NODE_VERSION: '18'
+
+jobs:
+  test-backend:
+    name: Test Backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Download dependencies
+        run: go mod download
+
+      - name: Run tests
+        run: go test -v -race -coverprofile=coverage.out ./...
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: ./coverage.out
+          flags: backend
+
+  lint-backend:
+    name: Lint Backend
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Run golangci-lint
+        uses: golangci/golangci-lint-action@v4
+        with:
+          version: latest
+
+  build-backend:
+    name: Build Backend
+    runs-on: ubuntu-latest
+    needs: [test-backend, lint-backend]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Build binary
+        run: |
+          go build -v -o server ./cmd/tinybrain
+          ./server --help
+
+  # Frontend tests will be added when frontend is implemented
+  # test-frontend:
+  #   name: Test Frontend
+  #   runs-on: ubuntu-latest
+  #   defaults:
+  #     run:
+  #       working-directory: web
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+  #
+  #     - name: Set up Node.js
+  #       uses: actions/setup-node@v4
+  #       with:
+  #         node-version: ${{ env.NODE_VERSION }}
+  #         cache: 'npm'
+  #         cache-dependency-path: web/package-lock.json
+  #
+  #     - name: Install dependencies
+  #       run: npm ci
+  #
+  #     - name: Run tests
+  #       run: npm run test
+  #
+  #     - name: Run linter
+  #       run: npm run lint
+
+  deploy-railway:
+    name: Deploy to Railway
+    runs-on: ubuntu-latest
+    needs: [build-backend]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install Railway CLI
+        run: npm install -g @railway/cli
+
+      - name: Deploy to Railway
+        env:
+          RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            railway up --environment production
+          else
+            railway up --environment staging
+          fi
+
+  # Cloudflare Pages deployment (automatic via GitHub integration)
+  # This job is for informational purposes only
+  notify-cloudflare:
+    name: Notify Cloudflare Deployment
+    runs-on: ubuntu-latest
+    needs: [build-backend]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
+    steps:
+      - name: Notify
+        run: |
+          echo "Cloudflare Pages will automatically deploy from this push"
+          echo "Branch: ${{ github.ref_name }}"
+          echo "Check status at: https://dash.cloudflare.com"
+
+  # Database migration (manual approval required)
+  migrate-database:
+    name: Run Database Migrations
+    runs-on: ubuntu-latest
+    needs: [deploy-railway]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://app.supabase.com
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Install PostgreSQL client
+        run: sudo apt-get update && sudo apt-get install -y postgresql-client
+
+      - name: Check for new migrations
+        id: check_migrations
+        run: |
+          # List migration files
+          MIGRATIONS=$(ls -1 supabase/migrations/*.sql 2>/dev/null || echo "")
+          if [ -z "$MIGRATIONS" ]; then
+            echo "No migrations found"
+            echo "has_migrations=false" >> $GITHUB_OUTPUT
+          else
+            echo "Found migrations:"
+            echo "$MIGRATIONS"
+            echo "has_migrations=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Apply migrations
+        if: steps.check_migrations.outputs.has_migrations == 'true'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          # Note: In production, use a migration tool like Flyway or Liquibase
+          # This is a simplified example
+          for migration in supabase/migrations/*.sql; do
+            echo "Applying migration: $migration"
+            # Uncomment the following line when ready to auto-apply migrations
+            # psql $DATABASE_URL -f "$migration"
+            echo "Migration application skipped (manual approval required)"
+          done
+
+      - name: Migration summary
+        if: steps.check_migrations.outputs.has_migrations == 'true'
+        run: |
+          echo "## Database Migration Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "⚠️ Migrations detected but not automatically applied." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Please review and manually apply migrations:" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          ls -1 supabase/migrations/*.sql >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+  # Integration tests (after deployment)
+  integration-test:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: [deploy-railway]
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging')
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Wait for deployment
+        run: sleep 30
+
+      - name: Test API health
+        run: |
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            API_URL="${{ secrets.PRODUCTION_API_URL }}"
+          else
+            API_URL="${{ secrets.STAGING_API_URL }}"
+          fi
+          
+          echo "Testing API at: $API_URL"
+          
+          # Health check
+          curl -f "$API_URL/health" || exit 1
+          
+          # MCP endpoint
+          curl -f -X POST "$API_URL/mcp" \
+            -H "Content-Type: application/json" \
+            -d '{"jsonrpc":"2.0","id":1,"method":"initialize"}' \
+            || exit 1
+          
+          echo "✅ Integration tests passed"
+
+  # Notify on completion
+  notify-completion:
+    name: Notify Deployment Complete
+    runs-on: ubuntu-latest
+    needs: [deploy-railway, integration-test]
+    if: always() && (github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/staging'))
+    steps:
+      - name: Create deployment summary
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** ${{ github.sha }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Status:** ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ needs.deploy-railway.result }}" == "success" ]; then
+            echo "✅ Railway deployment: SUCCESS" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Railway deployment: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          if [ "${{ needs.integration-test.result }}" == "success" ]; then
+            echo "✅ Integration tests: PASSED" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ Integration tests: FAILED" >> $GITHUB_STEP_SUMMARY
+          fi
