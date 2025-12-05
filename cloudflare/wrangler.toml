@@ -1,0 +1,39 @@
+# Cloudflare Workers Configuration for TinyBrain
+# https://developers.cloudflare.com/workers/wrangler/configuration/
+
+name = "tinybrain-api-proxy"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+
+# Workers configuration
+[env.production]
+name = "tinybrain-api-proxy-prod"
+vars = { ENVIRONMENT = "production" }
+routes = [
+  { pattern = "api.tinybrain.app/*", zone_name = "tinybrain.app" }
+]
+
+[env.staging]
+name = "tinybrain-api-proxy-staging"
+vars = { ENVIRONMENT = "staging" }
+
+# KV Namespaces for caching
+[[kv_namespaces]]
+binding = "CACHE"
+id = "your-kv-namespace-id"
+
+# Durable Objects (if needed for real-time features)
+# [[durable_objects.bindings]]
+# name = "REALTIME"
+# class_name = "RealtimeHandler"
+
+# Environment variables (set in Cloudflare dashboard)
+# API_URL - Railway backend URL
+# SUPABASE_URL - Supabase project URL
+# SUPABASE_ANON_KEY - Supabase anonymous key
+
+[build]
+command = "npm run build"
+
+[build.upload]
+format = "service-worker"
