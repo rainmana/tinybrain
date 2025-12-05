@@ -209,7 +209,9 @@ Users generate API keys in the web dashboard:
 Settings → API Keys → Generate New Key
 ```
 
-**API Key Format**: `tbrain_live_1a2b3c4d5e6f7g8h9i0j` (prefix identifies environment)
+**API Key Format**: `tbrain_live_xxxxxxxxxxxxxxxx` (prefix identifies environment)
+
+_Note: Example format only. Actual keys are 32+ random bytes, base64-encoded (~43 characters)._
 
 **Storage in Supabase**:
 ```sql
@@ -245,7 +247,7 @@ Users configure their MCP clients (Claude Desktop, Cursor, etc.) with their API 
       "args": [
         "-X", "POST",
         "https://mcp.tinybrain.io/v1/mcp",
-        "-H", "Authorization: Bearer tbrain_live_1a2b3c4d5e6f7g8h9i0j",
+        "-H", "Authorization: Bearer YOUR_API_KEY_HERE",
         "-H", "Content-Type: application/json",
         "-d", "@-"
       ]
@@ -261,7 +263,7 @@ Users configure their MCP clients (Claude Desktop, Cursor, etc.) with their API 
     "tinybrain": {
       "url": "https://mcp.tinybrain.io/v1/mcp",
       "headers": {
-        "Authorization": "Bearer tbrain_live_1a2b3c4d5e6f7g8h9i0j"
+        "Authorization": "Bearer YOUR_API_KEY_HERE"
       }
     }
   }
@@ -457,7 +459,7 @@ tinybrain-mcp-api:
 1. Get API key from web app (or via CLI tool)
 2. Configure MCP client with:
    - Endpoint: `https://mcp.tinybrain.io/v1/mcp`
-   - API Key: `tbrain_live_...`
+   - API Key: `tbrain_live_xxxxxxxxxxxxxxxx` (example format)
 3. Use AI assistant (Claude, Cursor) normally
 4. Memories stored with user isolation
 5. Can view/manage memories in web app
@@ -503,11 +505,15 @@ tinybrain-mcp-api:
 
 ### API Key Security
 
-1. **Generation**: Cryptographically random (32+ bytes)
-2. **Storage**: Bcrypt hashed in database
-3. **Transmission**: HTTPS only
-4. **Rotation**: Support key rotation
-5. **Scope**: Per-user, optionally per-team
+1. **Generation**: 
+   - Cryptographically random (32+ raw bytes)
+   - Base64-encoded for transmission (~43 characters)
+   - Format: `tbrain_{env}_{base64_encoded_random}`
+   - Example length: 60-70 characters total
+2. **Storage**: Bcrypt hashed in database (never store plaintext)
+3. **Transmission**: HTTPS only, Bearer token in Authorization header
+4. **Rotation**: Support key rotation without downtime
+5. **Scope**: Per-user, optionally per-team (future)
 6. **Expiration**: Optional expiration dates
 7. **Revocation**: Instant revocation support
 

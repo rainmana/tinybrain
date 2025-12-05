@@ -19,7 +19,7 @@
 │              │                                         │                    │
 └──────────────┼─────────────────────────────────────────┼────────────────────┘
                │                                         │
-               │ HTTPS (JWT)                             │ HTTPS (API Key)
+               │ HTTPS (Bearer JWT)                      │ HTTPS (Bearer API Key)
                │                                         │
                ▼                                         ▼
 ┌──────────────────────────────┐         ┌──────────────────────────────────┐
@@ -173,7 +173,7 @@ Supabase
 Claude Desktop (MCP Client)
   │
   │ POST /v1/mcp
-  │ Authorization: Bearer tbrain_live_xyz123  (API Key)
+  │ Authorization: Bearer <API_KEY>  (User's API key)
   │ Body: { method: "search_memories", params: { query: "SQL" } }
   │
   ▼
@@ -184,7 +184,7 @@ Cloudflare Worker
   ▼
 Railway Backend
   │
-  │ 1. Validate API key "tbrain_live_xyz123"
+  │ 1. Validate API key
   │ 2. Lookup: API key belongs to user_id = "alice"
   │ 3. Process: search_memories(query: "SQL", user: "alice")
   │
@@ -311,6 +311,8 @@ RLS Policy evaluates:
 | Cloudflare Pages | Unlimited | Free | $0 |
 | Cloudflare Workers | 100K req/day | Paid ($5/mo) | $5 |
 | **Total** | Limited | Production | **$60-80/mo** |
+
+_Note: Prices as of December 2024. Check current pricing at service provider websites._
 
 ## Summary
 
