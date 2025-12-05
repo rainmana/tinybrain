@@ -89,13 +89,18 @@ All foundational documentation and configuration files have been created:
      - [ ] Notifications
      - [ ] Security knowledge hub queries
 
-3. **MCP Protocol Adapter**
-   - [ ] Maintain backward compatibility with existing MCP clients
+3. **Multi-User MCP Protocol Adapter**
+   - [ ] Add API key authentication for MCP clients
+   - [ ] Create API key management table in Supabase
+   - [ ] Implement API key validation middleware
    - [ ] Create adapter layer that translates MCP calls to API calls
-   - [ ] Test with existing MCP clients
+   - [ ] Inject user context from API key
+   - [ ] Test with existing MCP clients (single-user)
+   - [ ] Test multi-user isolation
 
 4. **Authentication & Authorization**
-   - [ ] Implement JWT token validation
+   - [ ] Implement JWT token validation (for web)
+   - [ ] Implement API key validation (for MCP)
    - [ ] Add user context to requests
    - [ ] Enforce permission checks
    - [ ] Handle refresh tokens
@@ -109,13 +114,14 @@ All foundational documentation and configuration files have been created:
 6. **Testing**
    - [ ] Unit tests for all endpoints
    - [ ] Integration tests with Supabase
+   - [ ] Multi-user isolation tests
    - [ ] Load testing
    - [ ] Security testing
 
 **Deliverables:**
 - Working REST API hosted on Railway
-- MCP compatibility maintained
-- Authentication and authorization implemented
+- Multi-user MCP endpoint with API key auth
+- JWT and API key authentication implemented
 - Real-time notifications working
 - Comprehensive test suite
 
@@ -146,25 +152,36 @@ All foundational documentation and configuration files have been created:
    - [ ] Password reset flow
    - [ ] User profile management
 
-4. **Team Features**
+4. **API Key Management UI**
+   - [ ] API keys list page
+   - [ ] Generate new API key
+   - [ ] Display key only once at creation
+   - [ ] Revoke/delete API keys
+   - [ ] Show last used timestamp
+   - [ ] Usage statistics per key
+   - [ ] MCP client configuration guide
+
+5. **Team Features**
    - [ ] Team creation and management
    - [ ] Team member invitation
    - [ ] Role-based UI (owner, admin, member, viewer)
    - [ ] Team switching
 
-5. **Advanced Features**
+6. **Advanced Features**
    - [ ] Real-time updates display
    - [ ] MITRE ATT&CK visualization
    - [ ] Security knowledge hub interface
    - [ ] Export/import functionality
    - [ ] Notification center
+   - [ ] MCP activity monitoring
+   - [ ] API usage analytics dashboard
 
-6. **Responsive Design**
+7. **Responsive Design**
    - [ ] Mobile-friendly layouts
    - [ ] Tablet optimization
    - [ ] Desktop experience
 
-7. **Testing**
+8. **Testing**
    - [ ] Component tests (Jest + React Testing Library)
    - [ ] E2E tests (Playwright)
    - [ ] Accessibility testing
@@ -175,6 +192,8 @@ All foundational documentation and configuration files have been created:
 - Mobile-responsive design
 - Real-time features working
 - Authentication and team management
+- API key management interface
+- MCP activity monitoring
 - Comprehensive test coverage
 
 ### Phase 4: Data Migration Tools (2-3 weeks)

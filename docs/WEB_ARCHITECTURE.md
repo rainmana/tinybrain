@@ -493,6 +493,19 @@ Git Push → GitHub Actions → Run Tests
 
 **Estimated Total:** $25-75/month for small to medium deployment
 
+## Multi-User MCP Server
+
+For detailed information on supporting multiple users with the MCP protocol endpoint, see:
+
+**[Multi-User MCP Architecture Guide](./MULTI_USER_MCP_ARCHITECTURE.md)**
+
+This covers:
+- Two-domain architecture (`app.tinybrain.io` vs `mcp.tinybrain.io`)
+- API key-based authentication for MCP clients
+- Per-user data isolation with RLS
+- Cloudflare proxy for the MCP endpoint
+- Rate limiting and security considerations
+
 ## Future Enhancements
 
 1. **AI Integration**
