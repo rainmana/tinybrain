@@ -381,31 +381,45 @@ func (r *SecurityRepository) GetSecurityDataSummary(ctx context.Context) (map[st
 
 	// NVD Summary
 	var nvdCount int
-	var nvdLastUpdate sql.NullTime
+	var nvdLastUpdate sql.NullString
 	err := r.db.GetDB().QueryRowContext(ctx, "SELECT COUNT(*), MAX(updated_at) FROM nvd_cves").Scan(&nvdCount, &nvdLastUpdate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get NVD summary: %v", err)
 	}
 
+	var nvdTime *time.Time
+	if nvdLastUpdate.Valid {
+		if parsed, err := time.Parse("2006-01-02 15:04:05", nvdLastUpdate.String); err == nil {
+			nvdTime = &parsed
+		}
+	}
+
 	summaries["nvd"] = models.SecurityDataSummary{
 		DataSource:   "nvd",
 		TotalRecords: nvdCount,
-		LastUpdate:   &nvdLastUpdate.Time,
+		LastUpdate:   nvdTime,
 		Summary:      fmt.Sprintf("NVD database contains %d CVE entries", nvdCount),
 	}
 
 	// ATT&CK Summary
 	var attackCount int
-	var attackLastUpdate sql.NullTime
+	var attackLastUpdate sql.NullString
 	err = r.db.GetDB().QueryRowContext(ctx, "SELECT COUNT(*), MAX(updated_at) FROM attack_techniques").Scan(&attackCount, &attackLastUpdate)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get ATT&CK summary: %v", err)
 	}
 
+	var attackTime *time.Time
+	if attackLastUpdate.Valid {
+		if parsed, err := time.Parse("2006-01-02 15:04:05", attackLastUpdate.String); err == nil {
+			attackTime = &parsed
+		}
+	}
+
 	summaries["attack"] = models.SecurityDataSummary{
 		DataSource:   "attack",
 		TotalRecords: attackCount,
-		LastUpdate:   &attackLastUpdate.Time,
+		LastUpdate:   attackTime,
 		Summary:      fmt.Sprintf("MITRE ATT&CK database contains %d techniques", attackCount),
 	}
 
@@ -417,18 +431,17 @@ func (r *SecurityRepository) UpdateSecurityDataStatus(ctx context.Context, dataS
 	now := time.Now()
 
 	query := `
-		INSERT INTO security_data_updates (id, data_source, last_update, total_records, update_status, error_message, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO security_data_updates (id, data_source, last_updated, total_records, status, error_message, created_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
 		ON CONFLICT(id) DO UPDATE SET
-			last_update = excluded.last_update,
+			last_updated = excluded.last_updated,
 			total_records = excluded.total_records,
-			update_status = excluded.update_status,
-			error_message = excluded.error_message,
-			updated_at = excluded.updated_at
+			status = excluded.status,
+			error_message = excluded.error_message
 	`
 
 	_, err := r.db.GetDB().ExecContext(ctx, query,
-		dataSource, dataSource, now, totalRecords, status, errorMessage, now, now,
+		dataSource, dataSource, now, totalRecords, status, errorMessage, now,
 	)
 
 	return err

@@ -286,6 +286,99 @@ SELECT
 FROM relationships r
 JOIN memory_entries s1 ON r.source_entry_id = s1.id
 JOIN memory_entries t1 ON r.target_entry_id = t1.id;
+
+-- Security Knowledge Hub Tables
+
+-- NVD CVEs table
+CREATE TABLE IF NOT EXISTS nvd_cves (
+    id TEXT PRIMARY KEY,
+    description TEXT NOT NULL,
+    cvss_v2_score REAL,
+    cvss_v2_vector TEXT,
+    cvss_v3_score REAL,
+    cvss_v3_vector TEXT,
+    severity TEXT,
+    published_date DATETIME,
+    last_modified_date DATETIME,
+    cwe_ids TEXT, -- JSON array
+    affected_products TEXT, -- JSON array
+    refs TEXT, -- JSON array
+    raw_data TEXT, -- JSON raw data
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ATT&CK Techniques table
+CREATE TABLE IF NOT EXISTS attack_techniques (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    tactic TEXT,
+    tactics TEXT, -- JSON array
+    platforms TEXT, -- JSON array
+    kill_chain_phases TEXT, -- JSON array
+    data_sources TEXT, -- JSON array
+    detection TEXT,
+    mitigation TEXT,
+    refs TEXT, -- JSON array
+    sub_techniques TEXT, -- JSON array
+    parent_technique TEXT,
+    raw_data TEXT, -- JSON raw data
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- ATT&CK Tactics table
+CREATE TABLE IF NOT EXISTS attack_tactics (
+    id TEXT PRIMARY KEY,
+    name TEXT NOT NULL,
+    description TEXT NOT NULL,
+    external_id TEXT,
+    kill_chain_phases TEXT, -- JSON array
+    techniques TEXT, -- JSON array
+    refs TEXT, -- JSON array
+    raw_data TEXT, -- JSON raw data
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- OWASP Procedures table
+CREATE TABLE IF NOT EXISTS owasp_procedures (
+    id TEXT PRIMARY KEY,
+    category TEXT NOT NULL,
+    subcategory TEXT,
+    title TEXT NOT NULL,
+    description TEXT NOT NULL,
+    objective TEXT,
+    how_to_test TEXT,
+    tools TEXT, -- JSON array
+    refs TEXT, -- JSON array
+    severity TEXT,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Security Data Updates table
+CREATE TABLE IF NOT EXISTS security_data_updates (
+    id TEXT PRIMARY KEY,
+    data_source TEXT NOT NULL,
+    status TEXT NOT NULL DEFAULT 'pending',
+    total_records INTEGER,
+    error_message TEXT,
+    last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Indexes for security tables
+CREATE INDEX IF NOT EXISTS idx_nvd_cves_severity ON nvd_cves(severity);
+CREATE INDEX IF NOT EXISTS idx_nvd_cves_published ON nvd_cves(published_date);
+CREATE INDEX IF NOT EXISTS idx_nvd_cves_cvss3 ON nvd_cves(cvss_v3_score);
+
+CREATE INDEX IF NOT EXISTS idx_attack_techniques_tactic ON attack_techniques(tactic);
+CREATE INDEX IF NOT EXISTS idx_attack_techniques_platforms ON attack_techniques(platforms);
+
+CREATE INDEX IF NOT EXISTS idx_owasp_procedures_category ON owasp_procedures(category);
+CREATE INDEX IF NOT EXISTS idx_owasp_procedures_severity ON owasp_procedures(severity);
 `
 
 	// Execute schema
@@ -338,98 +431,6 @@ CREATE TRIGGER IF NOT EXISTS memory_entries_fts_update AFTER UPDATE ON memory_en
     INSERT INTO memory_entries_fts(rowid, title, content, tags) 
     VALUES (new.rowid, new.title, new.content, new.tags);
 END;
-
--- Security Knowledge Hub Tables
-
--- NVD CVEs table
-CREATE TABLE IF NOT EXISTS nvd_cves (
-    id TEXT PRIMARY KEY,
-    description TEXT NOT NULL,
-    cvss_v2_score REAL,
-    cvss_v2_vector TEXT,
-    cvss_v3_score REAL,
-    cvss_v3_vector TEXT,
-    severity TEXT,
-    published_date DATETIME,
-    last_modified_date DATETIME,
-    cwe_ids TEXT, -- JSON array
-    affected_products TEXT, -- JSON array
-    refs TEXT, -- JSON array
-    raw_data TEXT, -- JSON raw data
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
--- ATT&CK Techniques table
-CREATE TABLE IF NOT EXISTS attack_techniques (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    description TEXT NOT NULL,
-    tactic TEXT,
-    tactics TEXT, -- JSON array
-    platforms TEXT, -- JSON array
-    kill_chain_phases TEXT, -- JSON array
-    data_sources TEXT, -- JSON array
-    detection TEXT,
-    mitigation TEXT,
-    refs TEXT, -- JSON array
-    sub_techniques TEXT, -- JSON array
-    parent_technique TEXT,
-    raw_data TEXT, -- JSON raw data
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
--- ATT&CK Tactics table
-CREATE TABLE IF NOT EXISTS attack_tactics (
-    id TEXT PRIMARY KEY,
-    name TEXT NOT NULL,
-    description TEXT NOT NULL,
-    kill_chain_phases TEXT, -- JSON array
-    techniques TEXT, -- JSON array
-    refs TEXT, -- JSON array
-    raw_data TEXT, -- JSON raw data
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
--- OWASP Procedures table
-CREATE TABLE IF NOT EXISTS owasp_procedures (
-    id TEXT PRIMARY KEY,
-    category TEXT NOT NULL,
-    subcategory TEXT,
-    title TEXT NOT NULL,
-    description TEXT NOT NULL,
-    objective TEXT,
-    how_to_test TEXT,
-    tools TEXT, -- JSON array
-    refs TEXT, -- JSON array
-    severity TEXT,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
--- Security Data Updates table
-CREATE TABLE IF NOT EXISTS security_data_updates (
-    id TEXT PRIMARY KEY,
-    data_source TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'pending',
-    total_records INTEGER,
-    error_message TEXT,
-    last_updated DATETIME DEFAULT CURRENT_TIMESTAMP,
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-
--- Indexes for security tables
-CREATE INDEX IF NOT EXISTS idx_nvd_cves_severity ON nvd_cves(severity);
-CREATE INDEX IF NOT EXISTS idx_nvd_cves_published ON nvd_cves(published_date);
-CREATE INDEX IF NOT EXISTS idx_nvd_cves_cvss3 ON nvd_cves(cvss_v3_score);
-
-CREATE INDEX IF NOT EXISTS idx_attack_techniques_tactic ON attack_techniques(tactic);
-CREATE INDEX IF NOT EXISTS idx_attack_techniques_platforms ON attack_techniques(platforms);
-
-CREATE INDEX IF NOT EXISTS idx_owasp_procedures_category ON owasp_procedures(category);
-CREATE INDEX IF NOT EXISTS idx_owasp_procedures_severity ON owasp_procedures(severity);
 
 -- FTS5 virtual tables for security data (if available)
 CREATE VIRTUAL TABLE IF NOT EXISTS nvd_cves_fts USING fts5(

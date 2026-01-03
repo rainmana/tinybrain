@@ -197,21 +197,32 @@ func (s *SecurityRetrievalService) summarizeResults(results []interface{}, dataS
 
 // summarizeNVDResults creates concise summaries of CVE data
 func (s *SecurityRetrievalService) summarizeNVDResults(results []interface{}) []interface{} {
-	summaries := make([]interface{}, len(results))
+	summaries := make([]interface{}, 0, len(results))
 
-	for i, result := range results {
+	for _, result := range results {
 		if cve, ok := result.(models.NVDCVE); ok {
+			// Dereference pointers to get actual values
+			severity := ""
+			if cve.Severity != nil {
+				severity = *cve.Severity
+			}
+			
+			var cvssV3 float64
+			if cve.CVSSV3Score != nil {
+				cvssV3 = *cve.CVSSV3Score
+			}
+			
 			summary := map[string]interface{}{
 				"id":                cve.ID,
 				"description":       truncateString(cve.Description, 200),
-				"severity":          cve.Severity,
-				"cvss_v3":           cve.CVSSV3Score,
+				"severity":          severity,
+				"cvss_v3":           cvssV3,
 				"published":         cve.PublishedDate,
 				"cwe_ids":           cve.CWEIDs,
 				"affected_products": truncateSlice(cve.AffectedProducts, 5),
 				"summary":           s.generateCVESummary(cve),
 			}
-			summaries[i] = summary
+			summaries = append(summaries, summary)
 		}
 	}
 

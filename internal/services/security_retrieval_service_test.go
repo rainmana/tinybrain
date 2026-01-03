@@ -89,7 +89,7 @@ func TestSecurityRetrievalService_QuerySecurityData_NVD(t *testing.T) {
 	assert.Equal(t, "nvd", response.DataSource)
 	assert.Equal(t, 1, response.TotalCount)
 	assert.Len(t, response.Results, 1)
-	assert.True(t, response.HasMore)
+	assert.False(t, response.HasMore) // Only 1 result, limit is 10, so no more results
 
 	// Verify mock was called
 	mockRepo.AssertExpectations(t)
@@ -139,7 +139,7 @@ func TestSecurityRetrievalService_QuerySecurityData_ATTACK(t *testing.T) {
 	assert.Equal(t, "attack", response.DataSource)
 	assert.Equal(t, 1, response.TotalCount)
 	assert.Len(t, response.Results, 1)
-	assert.True(t, response.HasMore)
+	assert.False(t, response.HasMore) // Only 1 result, limit is 10, so no more results
 
 	// Verify mock was called
 	mockRepo.AssertExpectations(t)
