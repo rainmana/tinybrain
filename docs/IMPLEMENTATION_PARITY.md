@@ -50,6 +50,8 @@ Current verification includes:
 - Repository unit tests for sessions, memory CRUD, search, relationships, context snapshots, task progress, CVE mapping, risk correlation, compliance mapping, and security repositories.
 - MCP user-flow tests in `cmd/server` that exercise documented prefixed tool names, aliases, intelligence sessions, memory CRUD, search, relationships, context snapshots, and task progress through JSON-RPC-shaped calls.
 - MCP startup compatibility tests verify that JSON-RPC notifications do not emit error responses during client initialization.
+- Executable MCP user-flow tests build and launch the real server binary, drive stdio JSON-RPC, validate core tool behavior, restart the server, and verify persisted state from the same SQLite database.
+- GitHub Actions CI runs tests, the executable user-flow suite, vet, and server builds on Linux and Windows.
 - Pure-Go SQLite storage via `modernc.org/sqlite`, so tests and local builds work without CGO or a C compiler.
 - Dockerfile aligned to Go 1.24 and pure-Go SQLite.
 
@@ -57,6 +59,7 @@ Run the suite with:
 
 ```bash
 go test ./...
+go test -v ./cmd/server -run TestMCPExecutableAuthorizedAssessmentFlow -count=1
 go build -o tinybrain ./cmd/server
 go run ./cmd/server --health-check
 ```

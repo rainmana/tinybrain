@@ -158,6 +158,22 @@ func TestMCPNotificationsAreSilent(t *testing.T) {
 	require.Nil(t, resp)
 }
 
+func TestMCPNullIDStillReturnsResponse(t *testing.T) {
+	server, db := newTestMCPServer(t)
+	defer db.Close()
+
+	resp := mcpRoundTrip(t, server, map[string]interface{}{
+		"jsonrpc": "2.0",
+		"id":      nil,
+		"method":  "tools/list",
+		"params":  map[string]interface{}{},
+	})
+	require.NotNil(t, resp)
+	require.Nil(t, resp.ID)
+	require.Nil(t, resp.Error)
+	require.Contains(t, toolNames(t, resp), "store_memory")
+}
+
 func newTestMCPServer(t *testing.T) (*mcp.Server, *database.Database) {
 	t.Helper()
 

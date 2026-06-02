@@ -330,6 +330,7 @@ The documentation includes:
 - **[Security Patterns](https://rainmana.github.io/tinybrain/security-patterns/)** - CWE, OWASP, and multi-language patterns
 - **[Integration](https://rainmana.github.io/tinybrain/integration/)** - AI assistant integration and development setup
 - **[API Reference](https://rainmana.github.io/tinybrain/api-reference/)** - Complete MCP tools and REST API documentation
+- **[Testing Strategy](docs/TESTING.md)** - Unit, MCP user-flow, executable integration, and CI testing
 - **[Contributing](https://rainmana.github.io/tinybrain/contributing/)** - Guidelines for contributors
 
 ### Quick API Reference

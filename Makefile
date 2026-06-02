@@ -1,7 +1,7 @@
 # TinyBrain Memory Storage MCP Server
 # Security-focused LLM memory storage application
 
-.PHONY: build install test test-race clean run help
+.PHONY: build install test test-user-flow test-race clean run help
 
 # Variables
 BINARY_NAME=tinybrain
@@ -44,6 +44,11 @@ test:
 	@go test -v -coverprofile=coverage.out ./...
 	@go tool cover -html=coverage.out -o coverage.html
 	@echo "Test coverage report generated: coverage.html"
+
+# Run black-box executable MCP user-flow tests
+test-user-flow:
+	@echo "Running executable MCP user-flow tests..."
+	@go test -v ./cmd/server -run TestMCPExecutableAuthorizedAssessmentFlow -count=1
 
 # Run tests with the Go race detector. Requires CGO and a platform C compiler.
 test-race:
@@ -149,6 +154,7 @@ help:
 	@echo "  build-all    - Build for multiple platforms"
 	@echo "  install      - Install to GOPATH/bin"
 	@echo "  test         - Run tests with coverage"
+	@echo "  test-user-flow - Run executable MCP user-flow tests"
 	@echo "  test-race    - Run tests with the race detector (requires CGO)"
 	@echo "  test-verbose - Run tests with verbose output"
 	@echo "  bench        - Run benchmarks"

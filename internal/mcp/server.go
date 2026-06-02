@@ -17,8 +17,42 @@ import (
 type MCPRequest struct {
 	JSONRPC string      `json:"jsonrpc"`
 	ID      interface{} `json:"id"`
+	HasID   bool        `json:"-"`
 	Method  string      `json:"method"`
 	Params  interface{} `json:"params,omitempty"`
+}
+
+func (r *MCPRequest) UnmarshalJSON(data []byte) error {
+	*r = MCPRequest{}
+
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	if value, ok := raw["jsonrpc"]; ok {
+		if err := json.Unmarshal(value, &r.JSONRPC); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["id"]; ok {
+		r.HasID = true
+		if err := json.Unmarshal(value, &r.ID); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["method"]; ok {
+		if err := json.Unmarshal(value, &r.Method); err != nil {
+			return err
+		}
+	}
+	if value, ok := raw["params"]; ok {
+		if err := json.Unmarshal(value, &r.Params); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // MCPResponse represents a generic MCP response
@@ -130,7 +164,7 @@ func (s *Server) HandleRequest(ctx context.Context, req *MCPRequest) *MCPRespons
 func (s *Server) handleRequest(ctx context.Context, req *MCPRequest) *MCPResponse {
 	s.logger.Debug("Handling request", "method", req.Method, "id", req.ID)
 
-	if req.ID == nil {
+	if !req.HasID {
 		s.logger.Debug("Ignoring notification", "method", req.Method)
 		return nil
 	}
