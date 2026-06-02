@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -115,6 +116,12 @@ func (s *Server) ServeStdio() error {
 	return nil
 }
 
+// HandleRequest handles a request and is exposed for integration tests and
+// in-process transports.
+func (s *Server) HandleRequest(ctx context.Context, req *MCPRequest) *MCPResponse {
+	return s.handleRequest(ctx, req)
+}
+
 // handleRequest handles an incoming MCP request
 func (s *Server) handleRequest(ctx context.Context, req *MCPRequest) *MCPResponse {
 	s.logger.Debug("Handling request", "method", req.Method, "id", req.ID)
@@ -207,8 +214,9 @@ func (s *Server) handleToolsCall(ctx context.Context, req *MCPRequest) *MCPRespo
 		}
 	}
 
+	canonicalName := canonicalToolName(name)
 	s.mu.RLock()
-	handler, exists := s.handlers[name]
+	handler, exists := s.handlers[canonicalName]
 	s.mu.RUnlock()
 
 	if !exists {
@@ -232,7 +240,7 @@ func (s *Server) handleToolsCall(ctx context.Context, req *MCPRequest) *MCPRespo
 	duration := time.Since(start)
 
 	if err != nil {
-		s.logger.Error("Tool execution failed", "tool", name, "error", err, "duration", duration)
+		s.logger.Error("Tool execution failed", "tool", canonicalName, "error", err, "duration", duration)
 		return &MCPResponse{
 			JSONRPC: "2.0",
 			ID:      req.ID,
@@ -244,7 +252,7 @@ func (s *Server) handleToolsCall(ctx context.Context, req *MCPRequest) *MCPRespo
 		}
 	}
 
-	s.logger.Debug("Tool executed successfully", "tool", name, "duration", duration)
+	s.logger.Debug("Tool executed successfully", "tool", canonicalName, "duration", duration)
 
 	// Convert result to JSON string for proper formatting
 	resultJSON, err := json.Marshal(result)
@@ -264,5 +272,19 @@ func (s *Server) handleToolsCall(ctx context.Context, req *MCPRequest) *MCPRespo
 				},
 			},
 		},
+	}
+}
+
+func canonicalToolName(name string) string {
+	name = strings.TrimPrefix(name, "mcp_tinybrain-mcp-server_")
+	switch name {
+	case "create_memory":
+		return "store_memory"
+	case "search_memory":
+		return "search_memories"
+	case "get_related_entries":
+		return "get_related_memories"
+	default:
+		return name
 	}
 }

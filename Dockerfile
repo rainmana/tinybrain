@@ -1,5 +1,5 @@
 # Multi-stage build for TinyBrain Memory Storage MCP Server
-FROM golang:1.21-alpine AS builder
+FROM golang:1.24-alpine AS builder
 
 # Install build dependencies
 RUN apk add --no-cache git ca-certificates tzdata
@@ -16,14 +16,15 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Build the application
-RUN CGO_ENABLED=1 GOOS=linux go build -a -installsuffix cgo -ldflags '-extldflags "-static"' -o tinybrain ./cmd/server
+# Build the application. TinyBrain uses the pure-Go SQLite driver, so CGO and
+# platform C toolchains are not required.
+RUN CGO_ENABLED=0 GOOS=linux go build -o tinybrain ./cmd/server
 
 # Final stage
 FROM alpine:latest
 
 # Install runtime dependencies
-RUN apk --no-cache add ca-certificates sqlite
+RUN apk --no-cache add ca-certificates
 
 # Create non-root user
 RUN addgroup -g 1001 -S tinybrain && \
@@ -41,9 +42,6 @@ RUN mkdir -p /app/data && \
 
 # Switch to non-root user
 USER tinybrain
-
-# Expose port (if needed for future HTTP transport)
-EXPOSE 8080
 
 # Set environment variables
 ENV TINYBRAIN_DB_PATH=/app/data/memory.db

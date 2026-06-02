@@ -9,7 +9,9 @@
 
 TinyBrain is a comprehensive memory storage system designed specifically for security professionals, penetration testers, and AI assistants working on offensive security tasks. It provides intelligent memory management, pattern recognition, and comprehensive intelligence gathering capabilities through the Model Context Protocol (MCP).
 
-📖 **[View Complete Documentation](https://rainmana.github.io/tinybrain/)** | 🐛 [Report Issues](https://github.com/rainmana/tinybrain/issues) | 💬 [Discussions](https://github.com/rainmana/tinybrain/discussions)
+📖 **[View Complete Documentation](https://rainmana.github.io/tinybrain/)** | ✅ [Implementation Parity](docs/IMPLEMENTATION_PARITY.md) | 🐛 [Report Issues](https://github.com/rainmana/tinybrain/issues) | 💬 [Discussions](https://github.com/rainmana/tinybrain/discussions)
+
+> **Current scope:** the Go project currently ships the core SQLite-backed MCP stdio server. The published GitHub Pages site still includes forward-looking PocketBase, REST, GraphQL, SDK, and live NVD/API material; see [Implementation Parity](docs/IMPLEMENTATION_PARITY.md) for what is implemented and what is intentionally deferred.
 
 ## ✨ Key Features
 
@@ -45,16 +47,16 @@ TinyBrain is a comprehensive memory storage system designed specifically for sec
 - **Multi-Language Support**: Security patterns for 10+ programming languages
 - **Authorization Templates**: RBAC, ABAC, and DAC access control patterns
 - **Standards Compliance**: NIST, ISO 27001, PTES, and industry standards
-- **NVD Integration**: National Vulnerability Database with 314,835+ CVEs
+- **NVD-ready Data Model**: Local database tables and query services for CVE data; API ingestion is intentionally deferred in favor of manual file/plugin-style loading
 - **OWASP Testing Guide**: Complete web application security testing procedures
 
 ### 🔬 Security Knowledge Hub
-- **NVD Integration**: National Vulnerability Database with 314,835+ CVEs
+- **NVD-ready Data Model**: CVE storage/query scaffolding without making NVD API access part of the core runtime
 - **MITRE ATT&CK**: Complete framework with 823+ techniques and 14 tactics
 - **OWASP Testing Guide**: Comprehensive web application security testing procedures
 - **Intelligent Retrieval**: Context-aware querying with summarization
-- **Real-Time Updates**: Incremental data updates from official sources
-- **Rate Limiting**: Respectful API usage with proper rate limiting
+- **Manual/Plugin-Ready Updates**: Designed to support local dataset loading first, with API ingestion deferred behind future plugin-style integrations
+- **Rate Limiting Scaffolding**: Downloader services include rate-limit behavior for future API-backed integrations
 
 ### 📊 Memory Management
 - **30+ Memory Categories**: Comprehensive categorization for intelligence, reconnaissance, and analysis data
@@ -86,13 +88,13 @@ TinyBrain is a comprehensive memory storage system designed specifically for sec
 ### Developer Experience
 - **Simple Installation**: `go install` or `go build`
 - **Comprehensive Logging**: Detailed logging with structured output
-- **Extensive Testing**: 90%+ test coverage with benchmarks
+- **Extensive Testing**: Unit and MCP user-flow tests for the core memory workflow
 - **Docker Support**: Containerized deployment ready
-- **40 MCP Tools**: Complete API for all memory management operations
+- **MCP Tool Surface**: Complete API for core memory management operations, plus security-data scaffolding
 
-## 🛠️ Complete MCP Tool Set (40 Tools)
+## 🛠️ MCP Tool Set
 
-TinyBrain provides a comprehensive set of 40 MCP tools for complete LLM memory management:
+TinyBrain provides a comprehensive MCP tool surface for LLM memory management. The core memory/session/search/relationship tools are the stable path; security-data tools are scaffolding and should not be treated as required for the core workflow.
 
 ### Core Memory Operations (8 tools)
 - `store_memory` - Store new memory entries
@@ -189,17 +191,22 @@ Our security patterns cover 10 major programming languages with language-specifi
 ### Installation
 
 ```bash
-# Method 1: Install from source (recommended)
-go install github.com/rainmana/tinybrain/cmd/server@latest
-
-# Method 2: Clone and build locally
+# Method 1: Build locally (recommended for now)
 git clone https://github.com/rainmana/tinybrain.git
 cd tinybrain
-make build
+go build -o tinybrain ./cmd/server
 
-# Method 3: Docker
+# Method 2: Install with Go (binary name is "server" because the package is cmd/server)
+go install github.com/rainmana/tinybrain/cmd/server@latest
+
+# Method 3: Clone and build manually
+git clone https://github.com/rainmana/tinybrain.git
+cd tinybrain
+go build -o tinybrain ./cmd/server
+
+# Method 4: Docker
 docker pull rainmana/tinybrain:latest
-docker run -p 8080:8080 rainmana/tinybrain
+docker run -i -v ~/.tinybrain:/app/data rainmana/tinybrain
 ```
 
 ### Pre-built Binaries
@@ -208,11 +215,14 @@ Download from [Releases](https://github.com/rainmana/tinybrain/releases)
 ### Basic Usage
 
 ```bash
-# Start the server (uses ~/.tinybrain/memory.db by default)
-tinybrain-server
+# Start the MCP stdio server after a local build
+./tinybrain
 
 # Or with custom database path
-TINYBRAIN_DB_PATH=/path/to/your/memory.db tinybrain-server
+TINYBRAIN_DB_PATH=/path/to/your/memory.db ./tinybrain
+
+# Health check the configured database
+./tinybrain --health-check
 ```
 
 ### Intelligence Gathering Example
@@ -258,13 +268,13 @@ finding := &IntelligenceFinding{
 
 ### Troubleshooting Installation
 
-If you encounter issues with `go install`, try these solutions:
+If you encounter issues with `go install`, try these solutions. Note that `go install github.com/rainmana/tinybrain/cmd/server@latest` installs a binary named `server`; use `go build -o tinybrain ./cmd/server` if you want the local `tinybrain` name.
 
 ```bash
 # If you get authentication errors, use direct clone method
 git clone https://github.com/rainmana/tinybrain.git
 cd tinybrain
-go build -o tinybrain cmd/server/main.go
+go build -o tinybrain ./cmd/server
 
 # If repository is private, ensure you have access
 git config --global url."git@github.com:".insteadOf "https://github.com/"
@@ -281,7 +291,7 @@ Add to your MCP client configuration (e.g., Claude Desktop):
 {
   "mcpServers": {
     "tinybrain": {
-      "command": "tinybrain",
+      "command": "/absolute/path/to/tinybrain/tinybrain",
       "args": [],
       "env": {
         "TINYBRAIN_DB_PATH": "~/.tinybrain/memory.db"
@@ -529,13 +539,13 @@ git clone https://github.com/rainmana/tinybrain.git
 cd tinybrain
 
 # Setup development environment
-make dev-setup
+go mod download
 
 # Run tests
-make test
+go test ./...
 
 # Build
-make build
+go build -o tinybrain ./cmd/server
 ```
 
 ## 📄 License

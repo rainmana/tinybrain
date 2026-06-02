@@ -1,7 +1,7 @@
 # TinyBrain Memory Storage MCP Server
 # Security-focused LLM memory storage application
 
-.PHONY: build install test clean run help
+.PHONY: build install test test-race clean run help
 
 # Variables
 BINARY_NAME=tinybrain
@@ -18,6 +18,7 @@ all: build
 # Build the binary
 build:
 	@echo "Building $(BINARY_NAME)..."
+	@mkdir -p bin
 	@go build $(LDFLAGS) -o bin/$(BINARY_NAME) ./cmd/server
 	@echo "Build complete: bin/$(BINARY_NAME)"
 
@@ -40,14 +41,19 @@ install:
 # Run tests
 test:
 	@echo "Running tests..."
-	@go test -v -race -coverprofile=coverage.out ./...
+	@go test -v -coverprofile=coverage.out ./...
 	@go tool cover -html=coverage.out -o coverage.html
 	@echo "Test coverage report generated: coverage.html"
+
+# Run tests with the Go race detector. Requires CGO and a platform C compiler.
+test-race:
+	@echo "Running race detector tests..."
+	@go test -v -race ./...
 
 # Run tests with verbose output
 test-verbose:
 	@echo "Running tests with verbose output..."
-	@go test -v -race ./...
+	@go test -v ./...
 
 # Run benchmarks
 bench:
@@ -143,6 +149,7 @@ help:
 	@echo "  build-all    - Build for multiple platforms"
 	@echo "  install      - Install to GOPATH/bin"
 	@echo "  test         - Run tests with coverage"
+	@echo "  test-race    - Run tests with the race detector (requires CGO)"
 	@echo "  test-verbose - Run tests with verbose output"
 	@echo "  bench        - Run benchmarks"
 	@echo "  run          - Run the server"

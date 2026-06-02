@@ -42,6 +42,8 @@ func (r *MemoryRepository) CreateSession(ctx context.Context, session *models.Se
 	}
 
 	now := time.Now()
+	session.CreatedAt = now
+	session.UpdatedAt = now
 	_, err = r.db.ExecContext(ctx, query,
 		session.ID,
 		session.Name,
@@ -50,7 +52,7 @@ func (r *MemoryRepository) CreateSession(ctx context.Context, session *models.Se
 		session.Status,
 		now,
 		now,
-		metadataJSON,
+		string(metadataJSON),
 	)
 
 	if err != nil {
@@ -209,7 +211,7 @@ func (r *MemoryRepository) CreateMemoryEntry(ctx context.Context, req *models.Cr
 		entry.Category,
 		entry.Priority,
 		entry.Confidence,
-		tagsJSON,
+		string(tagsJSON),
 		entry.Source,
 		entry.CreatedAt,
 		entry.UpdatedAt,
@@ -309,6 +311,11 @@ func (r *MemoryRepository) SearchMemoryEntries(ctx context.Context, req *models.
 		query.WriteString(fmt.Sprintf(" AND me.category IN (%s)", strings.Join(placeholders, ",")))
 	}
 
+	for _, tag := range req.Tags {
+		query.WriteString(" AND me.tags LIKE ?")
+		args = append(args, "%"+tag+"%")
+	}
+
 	if req.MinPriority > 0 {
 		query.WriteString(" AND me.priority >= ?")
 		args = append(args, req.MinPriority)
@@ -328,7 +335,7 @@ func (r *MemoryRepository) SearchMemoryEntries(ctx context.Context, req *models.
 		err := r.db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='memory_entries_fts'").Scan(&fts5Exists)
 		if err == nil && fts5Exists > 0 {
 			query.WriteString(`
-				AND me.id IN (
+				AND me.rowid IN (
 					SELECT rowid FROM memory_entries_fts 
 					WHERE memory_entries_fts MATCH ?
 				)
@@ -571,7 +578,7 @@ func (r *MemoryRepository) calculateRelevance(entry *models.MemoryEntry, query s
 // CreateContextSnapshot creates a snapshot of the current context for a session
 func (r *MemoryRepository) CreateContextSnapshot(ctx context.Context, sessionID, name, description string, contextData map[string]interface{}) (*models.ContextSnapshot, error) {
 	snapshot := &models.ContextSnapshot{
-		ID:          fmt.Sprintf("snapshot_%d", time.Now().UnixNano()),
+		ID:          fmt.Sprintf("snapshot_%s", uuid.New().String()),
 		SessionID:   sessionID,
 		Name:        name,
 		Description: description,
@@ -658,7 +665,7 @@ func (r *MemoryRepository) ListContextSnapshots(ctx context.Context, sessionID s
 		SELECT id, session_id, name, description, context_data, memory_summary, created_at
 		FROM context_snapshots
 		WHERE session_id = ?
-		ORDER BY created_at DESC
+		ORDER BY created_at DESC, rowid DESC
 		LIMIT ? OFFSET ?
 	`
 
@@ -1194,6 +1201,77 @@ func (r *MemoryRepository) BatchCreateMemoryEntries(ctx context.Context, session
 	return createdMemories, nil
 }
 
+// UpdateMemoryEntry updates a single memory entry.
+func (r *MemoryRepository) UpdateMemoryEntry(ctx context.Context, update *models.UpdateMemoryEntryRequest) (*models.MemoryEntry, error) {
+	if update == nil || update.ID == "" {
+		return nil, fmt.Errorf("memory id is required")
+	}
+
+	setParts := []string{}
+	args := []interface{}{}
+
+	if update.Title != "" {
+		setParts = append(setParts, "title = ?")
+		args = append(args, update.Title)
+	}
+	if update.Content != "" {
+		setParts = append(setParts, "content = ?")
+		args = append(args, update.Content)
+	}
+	if update.ContentType != "" {
+		setParts = append(setParts, "content_type = ?")
+		args = append(args, update.ContentType)
+	}
+	if update.Category != "" {
+		setParts = append(setParts, "category = ?")
+		args = append(args, update.Category)
+	}
+	if update.Priority != nil {
+		setParts = append(setParts, "priority = ?")
+		args = append(args, *update.Priority)
+	}
+	if update.Confidence != nil {
+		setParts = append(setParts, "confidence = ?")
+		args = append(args, *update.Confidence)
+	}
+	if update.Tags != nil {
+		tagsJSON, err := json.Marshal(update.Tags)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal tags: %w", err)
+		}
+		setParts = append(setParts, "tags = ?")
+		args = append(args, string(tagsJSON))
+	}
+	if update.Source != "" {
+		setParts = append(setParts, "source = ?")
+		args = append(args, update.Source)
+	}
+
+	if len(setParts) == 0 {
+		return r.GetMemoryEntry(ctx, update.ID)
+	}
+
+	setParts = append(setParts, "updated_at = ?")
+	args = append(args, time.Now())
+	args = append(args, update.ID)
+
+	query := fmt.Sprintf("UPDATE memory_entries SET %s WHERE id = ?", strings.Join(setParts, ", "))
+	result, err := r.db.ExecContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update memory entry: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return nil, fmt.Errorf("failed to inspect update result: %w", err)
+	}
+	if rowsAffected == 0 {
+		return nil, fmt.Errorf("memory entry not found: %s", update.ID)
+	}
+
+	return r.GetMemoryEntry(ctx, update.ID)
+}
+
 // BatchUpdateMemoryEntries updates multiple memory entries in a single transaction
 func (r *MemoryRepository) BatchUpdateMemoryEntries(ctx context.Context, updates []*models.UpdateMemoryEntryRequest) ([]*models.MemoryEntry, error) {
 	tx, err := r.db.BeginTx(ctx, nil)
@@ -1202,9 +1280,13 @@ func (r *MemoryRepository) BatchUpdateMemoryEntries(ctx context.Context, updates
 	}
 	defer tx.Rollback()
 
-	var updatedMemories []*models.MemoryEntry
+	updatedIDs := []string{}
 
 	for _, update := range updates {
+		if update == nil || update.ID == "" {
+			return nil, fmt.Errorf("memory id is required")
+		}
+
 		// Build dynamic update query
 		setParts := []string{}
 		args := []interface{}{}
@@ -1216,6 +1298,10 @@ func (r *MemoryRepository) BatchUpdateMemoryEntries(ctx context.Context, updates
 		if update.Content != "" {
 			setParts = append(setParts, "content = ?")
 			args = append(args, update.Content)
+		}
+		if update.ContentType != "" {
+			setParts = append(setParts, "content_type = ?")
+			args = append(args, update.ContentType)
 		}
 		if update.Category != "" {
 			setParts = append(setParts, "category = ?")
@@ -1257,21 +1343,47 @@ func (r *MemoryRepository) BatchUpdateMemoryEntries(ctx context.Context, updates
 			return nil, fmt.Errorf("failed to update memory entry: %w", err)
 		}
 
-		// Get the updated memory entry
-		memory, err := r.GetMemoryEntry(ctx, update.ID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get updated memory entry: %w", err)
-		}
-
-		updatedMemories = append(updatedMemories, memory)
+		updatedIDs = append(updatedIDs, update.ID)
 	}
 
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("failed to commit transaction: %w", err)
 	}
 
+	updatedMemories := make([]*models.MemoryEntry, 0, len(updatedIDs))
+	for _, id := range updatedIDs {
+		memory, err := r.GetMemoryEntry(ctx, id)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get updated memory entry: %w", err)
+		}
+		updatedMemories = append(updatedMemories, memory)
+	}
+
 	r.logger.Info("Batch updated memory entries", "count", len(updatedMemories))
 	return updatedMemories, nil
+}
+
+// DeleteMemoryEntry deletes a single memory entry.
+func (r *MemoryRepository) DeleteMemoryEntry(ctx context.Context, memoryID string) error {
+	if memoryID == "" {
+		return fmt.Errorf("memory id is required")
+	}
+
+	result, err := r.db.ExecContext(ctx, "DELETE FROM memory_entries WHERE id = ?", memoryID)
+	if err != nil {
+		return fmt.Errorf("failed to delete memory entry: %w", err)
+	}
+
+	rowsAffected, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("failed to inspect delete result: %w", err)
+	}
+	if rowsAffected == 0 {
+		return fmt.Errorf("memory entry not found: %s", memoryID)
+	}
+
+	r.logger.Info("Deleted memory entry", "memory_id", memoryID)
+	return nil
 }
 
 // BatchDeleteMemoryEntries deletes multiple memory entries in a single transaction
@@ -2251,7 +2363,7 @@ func (r *MemoryRepository) generateMemorySummary(ctx context.Context, sessionID 
 // CreateTaskProgress creates a new task progress entry
 func (r *MemoryRepository) CreateTaskProgress(ctx context.Context, sessionID, taskName, stage, status, notes string, progressPercentage int) (*models.TaskProgress, error) {
 	progress := &models.TaskProgress{
-		ID:                 fmt.Sprintf("task_%d", time.Now().UnixNano()),
+		ID:                 fmt.Sprintf("task_%s", uuid.New().String()),
 		SessionID:          sessionID,
 		TaskName:           taskName,
 		Stage:              stage,
@@ -2425,7 +2537,7 @@ func (r *MemoryRepository) ListTaskProgress(ctx context.Context, sessionID strin
 		args = append(args, status)
 	}
 
-	query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+	query += " ORDER BY created_at DESC, rowid DESC LIMIT ? OFFSET ?"
 	args = append(args, limit, offset)
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
@@ -2520,7 +2632,7 @@ func (r *MemoryRepository) MapToCVE(ctx context.Context, sessionID, cweID string
 		cveMapping.ID,
 		cveMapping.SessionID,
 		cveMapping.CWEID,
-		cveListJSON,
+		string(cveListJSON),
 		cveMapping.LastUpdated,
 		cveMapping.Confidence,
 		cveMapping.Source,
@@ -2788,9 +2900,9 @@ func (r *MemoryRepository) storeRiskCorrelation(ctx context.Context, correlation
 		correlation.ID,
 		correlation.SessionID,
 		correlation.PrimaryVulnID,
-		secondaryVulnIDsJSON,
+		string(secondaryVulnIDsJSON),
 		correlation.RiskMultiplier,
-		attackChainJSON,
+		string(attackChainJSON),
 		correlation.BusinessImpact,
 		correlation.Confidence,
 		correlation.CreatedAt,
@@ -3040,10 +3152,10 @@ func (r *MemoryRepository) storeComplianceMapping(ctx context.Context, mapping *
 		mapping.SessionID,
 		mapping.Standard,
 		mapping.Requirement,
-		vulnIDsJSON,
+		string(vulnIDsJSON),
 		mapping.ComplianceScore,
-		gapAnalysisJSON,
-		recommendationsJSON,
+		string(gapAnalysisJSON),
+		string(recommendationsJSON),
 		mapping.CreatedAt,
 		mapping.UpdatedAt,
 	)

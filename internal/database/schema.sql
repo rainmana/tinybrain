@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT,
-    task_type TEXT NOT NULL CHECK (task_type IN ('security_review', 'penetration_test', 'exploit_dev', 'vulnerability_analysis', 'threat_modeling', 'incident_response', 'general')),
+    task_type TEXT NOT NULL CHECK (task_type IN ('security_review', 'penetration_test', 'exploit_dev', 'vulnerability_analysis', 'threat_modeling', 'incident_response', 'intelligence_analysis', 'reverse_engineering', 'malware_analysis', 'general')),
     status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'completed', 'archived')),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -29,7 +29,13 @@ CREATE TABLE IF NOT EXISTS memory_entries (
     title TEXT NOT NULL,
     content TEXT NOT NULL,
     content_type TEXT NOT NULL DEFAULT 'text' CHECK (content_type IN ('text', 'code', 'json', 'yaml', 'markdown', 'binary_ref')),
-    category TEXT NOT NULL CHECK (category IN ('finding', 'vulnerability', 'exploit', 'payload', 'technique', 'tool', 'reference', 'context', 'hypothesis', 'evidence', 'recommendation', 'note')),
+    category TEXT NOT NULL CHECK (category IN (
+        'finding', 'vulnerability', 'exploit', 'payload', 'technique', 'tool', 'reference', 'context', 'hypothesis', 'evidence', 'recommendation', 'note',
+        'intelligence', 'osint', 'humint', 'sigint', 'geoint', 'masint', 'techint', 'finint', 'cybint',
+        'reconnaissance', 'target_analysis', 'infrastructure_mapping', 'vulnerability_assessment',
+        'malware_analysis', 'binary_analysis', 'vulnerability_research', 'reverse_engineering', 'protocol_analysis', 'code_analysis',
+        'threat_actor', 'attack_campaign', 'ioc', 'ttp', 'pattern', 'correlation'
+    )),
     priority INTEGER DEFAULT 0 CHECK (priority >= 0 AND priority <= 10), -- 0=low, 10=critical
     confidence REAL DEFAULT 0.5 CHECK (confidence >= 0.0 AND confidence <= 1.0),
     tags TEXT, -- JSON array of tags
@@ -46,7 +52,7 @@ CREATE TABLE IF NOT EXISTS relationships (
     id TEXT PRIMARY KEY,
     source_entry_id TEXT NOT NULL,
     target_entry_id TEXT NOT NULL,
-    relationship_type TEXT NOT NULL CHECK (relationship_type IN ('depends_on', 'causes', 'mitigates', 'exploits', 'references', 'contradicts', 'supports', 'related_to', 'parent_of', 'child_of')),
+    relationship_type TEXT NOT NULL CHECK (relationship_type IN ('depends_on', 'causes', 'mitigates', 'exploits', 'refs', 'references', 'contradicts', 'supports', 'related_to', 'parent_of', 'child_of')),
     strength REAL DEFAULT 0.5 CHECK (strength >= 0.0 AND strength <= 1.0),
     description TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

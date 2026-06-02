@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/charmbracelet/log"
 	"github.com/rainmana/tinybrain/internal/database"
 	"github.com/rainmana/tinybrain/internal/models"
-	"github.com/charmbracelet/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -23,6 +23,9 @@ func setupTestDB(t *testing.T) (*database.Database, *MemoryRepository) {
 
 	db, err := database.NewDatabase(dbPath, logger)
 	require.NoError(t, err)
+	t.Cleanup(func() {
+		require.NoError(t, db.Close())
+	})
 
 	repo := NewMemoryRepository(db.GetDB(), logger)
 	return db, repo
@@ -57,6 +60,10 @@ func TestCreateSession(t *testing.T) {
 	assert.Equal(t, session.TaskType, retrieved.TaskType)
 	assert.Equal(t, session.Status, retrieved.Status)
 	assert.Equal(t, session.Metadata, retrieved.Metadata)
+	assert.False(t, session.CreatedAt.IsZero())
+	assert.False(t, session.UpdatedAt.IsZero())
+	assert.False(t, retrieved.CreatedAt.IsZero())
+	assert.False(t, retrieved.UpdatedAt.IsZero())
 }
 
 func TestCreateMemoryEntry(t *testing.T) {
@@ -106,6 +113,62 @@ func TestCreateMemoryEntry(t *testing.T) {
 	assert.Equal(t, entry.ID, retrieved.ID)
 	assert.Equal(t, entry.Title, retrieved.Title)
 	assert.Equal(t, 1, retrieved.AccessCount) // Should be incremented after retrieval
+}
+
+func TestUpdateDeleteAndTagFilterMemoryEntry(t *testing.T) {
+	db, repo := setupTestDB(t)
+	defer db.Close()
+
+	ctx := context.Background()
+
+	session := &models.Session{
+		ID:       "test-session-intel",
+		Name:     "Documented Intelligence Session",
+		TaskType: "intelligence_analysis",
+		Status:   "active",
+	}
+	require.NoError(t, repo.CreateSession(ctx, session))
+
+	entry, err := repo.CreateMemoryEntry(ctx, &models.CreateMemoryEntryRequest{
+		SessionID:  session.ID,
+		Title:      "OSINT Finding",
+		Content:    "Social media analysis found a likely target technology stack.",
+		Category:   "intelligence",
+		Priority:   7,
+		Confidence: 0.8,
+		Tags:       []string{"osint", "social-media"},
+		Source:     "manual-analysis",
+	})
+	require.NoError(t, err)
+
+	results, err := repo.SearchMemoryEntries(ctx, &models.SearchRequest{
+		Query:      "technology stack",
+		SessionID:  session.ID,
+		Categories: []string{"intelligence"},
+		Tags:       []string{"osint"},
+		SearchType: "exact",
+		Limit:      10,
+	})
+	require.NoError(t, err)
+	require.Len(t, results, 1)
+	assert.Equal(t, entry.ID, results[0].MemoryEntry.ID)
+
+	priority := 9
+	confidence := 0.95
+	updated, err := repo.UpdateMemoryEntry(ctx, &models.UpdateMemoryEntryRequest{
+		ID:         entry.ID,
+		Priority:   &priority,
+		Confidence: &confidence,
+		Tags:       []string{"osint", "social-media", "validated"},
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 9, updated.Priority)
+	assert.Equal(t, 0.95, updated.Confidence)
+	assert.Contains(t, updated.Tags, "validated")
+
+	require.NoError(t, repo.DeleteMemoryEntry(ctx, entry.ID))
+	_, err = repo.GetMemoryEntry(ctx, entry.ID)
+	assert.Error(t, err)
 }
 
 func TestSearchMemoryEntries(t *testing.T) {
@@ -175,11 +238,11 @@ func TestSearchMemoryEntries(t *testing.T) {
 
 	// Test category filter
 	searchReq = &models.SearchRequest{
-		Query:       "vulnerability",
-		SessionID:   session.ID,
-		Categories:  []string{"vulnerability"},
-		SearchType:  "exact",
-		Limit:       10,
+		Query:      "vulnerability",
+		SessionID:  session.ID,
+		Categories: []string{"vulnerability"},
+		SearchType: "exact",
+		Limit:      10,
 	}
 
 	results, err = repo.SearchMemoryEntries(ctx, searchReq)
@@ -188,11 +251,11 @@ func TestSearchMemoryEntries(t *testing.T) {
 
 	// Test priority filter
 	searchReq = &models.SearchRequest{
-		Query:        "authentication",
-		SessionID:    session.ID,
-		MinPriority:  7,
-		SearchType:   "exact",
-		Limit:        10,
+		Query:       "authentication",
+		SessionID:   session.ID,
+		MinPriority: 7,
+		SearchType:  "exact",
+		Limit:       10,
 	}
 
 	results, err = repo.SearchMemoryEntries(ctx, searchReq)

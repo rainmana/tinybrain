@@ -9,7 +9,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 // Database represents the SQLite database connection and operations
@@ -26,9 +26,10 @@ func NewDatabase(dbPath string, logger *log.Logger) (*Database, error) {
 		return nil, fmt.Errorf("failed to create database directory: %w", err)
 	}
 
-	// Open database with optimized settings for security tasks
-	dsn := fmt.Sprintf("file:%s?cache=shared&_journal_mode=WAL&_synchronous=NORMAL&_foreign_keys=ON&_busy_timeout=30000", dbPath)
-	db, err := sql.Open("sqlite3", dsn)
+	// Open database with the pure-Go SQLite driver so local builds and tests do
+	// not require CGO or a platform C compiler.
+	dsn := fmt.Sprintf("file:%s?cache=shared", filepath.ToSlash(dbPath))
+	db, err := sql.Open("sqlite", dsn)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
@@ -41,6 +42,18 @@ func NewDatabase(dbPath string, logger *log.Logger) (*Database, error) {
 	// Test connection
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("failed to ping database: %w", err)
+	}
+
+	pragmas := []string{
+		"PRAGMA journal_mode = WAL",
+		"PRAGMA synchronous = NORMAL",
+		"PRAGMA foreign_keys = ON",
+		"PRAGMA busy_timeout = 30000",
+	}
+	for _, pragma := range pragmas {
+		if _, err := db.Exec(pragma); err != nil {
+			return nil, fmt.Errorf("failed to apply SQLite pragma %q: %w", pragma, err)
+		}
 	}
 
 	database := &Database{
@@ -60,7 +73,9 @@ func NewDatabase(dbPath string, logger *log.Logger) (*Database, error) {
 // Close closes the database connection
 func (d *Database) Close() error {
 	if d.db != nil {
-		return d.db.Close()
+		db := d.db
+		d.db = nil
+		return db.Close()
 	}
 	return nil
 }
@@ -86,7 +101,7 @@ CREATE TABLE IF NOT EXISTS sessions (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT,
-    task_type TEXT NOT NULL CHECK (task_type IN ('security_review', 'penetration_test', 'exploit_dev', 'vulnerability_analysis', 'threat_modeling', 'incident_response', 'general')),
+    task_type TEXT NOT NULL CHECK (task_type IN ('security_review', 'penetration_test', 'exploit_dev', 'vulnerability_analysis', 'threat_modeling', 'incident_response', 'intelligence_analysis', 'reverse_engineering', 'malware_analysis', 'general')),
     status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'paused', 'completed', 'archived')),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -100,7 +115,13 @@ CREATE TABLE IF NOT EXISTS memory_entries (
     title TEXT NOT NULL,
     content TEXT NOT NULL,
     content_type TEXT NOT NULL DEFAULT 'text' CHECK (content_type IN ('text', 'code', 'json', 'yaml', 'markdown', 'binary_ref')),
-    category TEXT NOT NULL CHECK (category IN ('finding', 'vulnerability', 'exploit', 'payload', 'technique', 'tool', 'reference', 'context', 'hypothesis', 'evidence', 'recommendation', 'note')),
+    category TEXT NOT NULL CHECK (category IN (
+        'finding', 'vulnerability', 'exploit', 'payload', 'technique', 'tool', 'reference', 'context', 'hypothesis', 'evidence', 'recommendation', 'note',
+        'intelligence', 'osint', 'humint', 'sigint', 'geoint', 'masint', 'techint', 'finint', 'cybint',
+        'reconnaissance', 'target_analysis', 'infrastructure_mapping', 'vulnerability_assessment',
+        'malware_analysis', 'binary_analysis', 'vulnerability_research', 'reverse_engineering', 'protocol_analysis', 'code_analysis',
+        'threat_actor', 'attack_campaign', 'ioc', 'ttp', 'pattern', 'correlation'
+    )),
     priority INTEGER DEFAULT 0 CHECK (priority >= 0 AND priority <= 10), -- 0=low, 10=critical
     confidence REAL DEFAULT 0.5 CHECK (confidence >= 0.0 AND confidence <= 1.0),
     tags TEXT, -- JSON array of tags
@@ -117,7 +138,7 @@ CREATE TABLE IF NOT EXISTS relationships (
     id TEXT PRIMARY KEY,
     source_entry_id TEXT NOT NULL,
     target_entry_id TEXT NOT NULL,
-    relationship_type TEXT NOT NULL CHECK (relationship_type IN ('depends_on', 'causes', 'mitigates', 'exploits', 'refs', 'contradicts', 'supports', 'related_to', 'parent_of', 'child_of')),
+    relationship_type TEXT NOT NULL CHECK (relationship_type IN ('depends_on', 'causes', 'mitigates', 'exploits', 'refs', 'references', 'contradicts', 'supports', 'related_to', 'parent_of', 'child_of')),
     strength REAL DEFAULT 0.5 CHECK (strength >= 0.0 AND strength <= 1.0),
     description TEXT,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,

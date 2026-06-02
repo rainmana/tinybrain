@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/log"
+	"github.com/google/uuid"
 	"github.com/rainmana/tinybrain/internal/database"
 	"github.com/rainmana/tinybrain/internal/mcp"
 	"github.com/rainmana/tinybrain/internal/models"
@@ -46,6 +48,15 @@ func main() {
 			logger.Fatal("Failed to get user home directory", "error", err)
 		}
 		dbPath = filepath.Join(homeDir, ".tinybrain", "memory.db")
+	}
+
+	if len(os.Args) > 1 && (os.Args[1] == "--health-check" || os.Args[1] == "health-check") {
+		if err := runHealthCheck(dbPath, logger); err != nil {
+			logger.Error("Health check failed", "error", err)
+			os.Exit(1)
+		}
+		fmt.Fprintln(os.Stdout, "ok")
+		return
 	}
 
 	// Initialize database
@@ -89,6 +100,15 @@ func main() {
 	if err := mcpServer.ServeStdio(); err != nil {
 		logger.Fatal("Server error", "error", err)
 	}
+}
+
+func runHealthCheck(dbPath string, logger *log.Logger) error {
+	db, err := database.NewDatabase(dbPath, logger)
+	if err != nil {
+		return err
+	}
+	defer db.Close()
+	return db.HealthCheck()
 }
 
 // registerTools registers all MCP tools for memory operations
@@ -223,6 +243,44 @@ func (t *TinyBrainServer) registerTools(s *mcp.Server) {
 			"required": []string{"memory_id"},
 		},
 		t.handleGetMemory,
+	)
+
+	s.AddTool("update_memory",
+		"Update an existing memory entry",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"memory_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ID of the memory entry to update",
+				},
+				"title":        map[string]interface{}{"type": "string", "description": "Updated title"},
+				"content":      map[string]interface{}{"type": "string", "description": "Updated content"},
+				"content_type": map[string]interface{}{"type": "string", "description": "Updated content type"},
+				"category":     map[string]interface{}{"type": "string", "description": "Updated category"},
+				"priority":     map[string]interface{}{"type": "number", "description": "Updated priority 0-10"},
+				"confidence":   map[string]interface{}{"type": "number", "description": "Updated confidence 0.0-1.0"},
+				"tags":         map[string]interface{}{"type": "array", "description": "Updated tags as an array or JSON array string"},
+				"source":       map[string]interface{}{"type": "string", "description": "Updated source"},
+			},
+			"required": []string{"memory_id"},
+		},
+		t.handleUpdateMemory,
+	)
+
+	s.AddTool("delete_memory",
+		"Delete a memory entry by ID",
+		map[string]interface{}{
+			"type": "object",
+			"properties": map[string]interface{}{
+				"memory_id": map[string]interface{}{
+					"type":        "string",
+					"description": "ID of the memory entry to delete",
+				},
+			},
+			"required": []string{"memory_id"},
+		},
+		t.handleDeleteMemory,
 	)
 
 	s.AddTool("search_memories",
@@ -1115,17 +1173,21 @@ func (t *TinyBrainServer) handleCreateSession(ctx context.Context, params map[st
 	}
 
 	description, _ := params["description"].(string)
-	metadataStr, _ := params["metadata"].(string)
-
-	var metadata map[string]interface{}
-	if metadataStr != "" {
-		if err := json.Unmarshal([]byte(metadataStr), &metadata); err != nil {
-			return nil, fmt.Errorf("invalid metadata JSON: %v", err)
+	metadata, err := parseStringMap(params["metadata"])
+	if err != nil {
+		return nil, fmt.Errorf("invalid metadata: %v", err)
+	}
+	if metadata == nil {
+		metadata = make(map[string]interface{})
+	}
+	for _, key := range []string{"intelligence_type", "classification", "threat_level"} {
+		if value, ok := params[key]; ok {
+			metadata[key] = value
 		}
 	}
 
 	session := &models.Session{
-		ID:          fmt.Sprintf("session_%d", time.Now().UnixNano()),
+		ID:          fmt.Sprintf("session_%s", uuid.New().String()),
 		Name:        name,
 		Description: description,
 		TaskType:    taskType,
@@ -1208,12 +1270,11 @@ func (t *TinyBrainServer) handleStoreMemory(ctx context.Context, params map[stri
 		confidence = confidenceVal
 	}
 
-	var tags []string
-	if tagsStr, ok := params["tags"].(string); ok && tagsStr != "" {
-		if err := json.Unmarshal([]byte(tagsStr), &tags); err != nil {
-			return nil, fmt.Errorf("invalid tags JSON: %v", err)
-		}
+	tags, err := parseStringSlice(params["tags"])
+	if err != nil {
+		return nil, fmt.Errorf("invalid tags: %v", err)
 	}
+	tags = appendSecurityMetadataTags(tags, params)
 
 	source, _ := params["source"].(string)
 
@@ -1237,8 +1298,79 @@ func (t *TinyBrainServer) handleStoreMemory(ctx context.Context, params map[stri
 	return entry, nil
 }
 
+func (t *TinyBrainServer) handleUpdateMemory(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	memoryID, ok := params["memory_id"].(string)
+	if !ok {
+		memoryID, ok = params["id"].(string)
+	}
+	if !ok {
+		return nil, fmt.Errorf("memory_id is required")
+	}
+
+	update := &models.UpdateMemoryEntryRequest{ID: memoryID}
+	if title, ok := params["title"].(string); ok {
+		update.Title = title
+	}
+	if content, ok := params["content"].(string); ok {
+		update.Content = content
+	}
+	if contentType, ok := params["content_type"].(string); ok {
+		update.ContentType = contentType
+	}
+	if category, ok := params["category"].(string); ok {
+		update.Category = category
+	}
+	if priorityVal, ok := params["priority"].(float64); ok {
+		priority := int(priorityVal)
+		update.Priority = &priority
+	}
+	if confidenceVal, ok := params["confidence"].(float64); ok {
+		confidence := confidenceVal
+		update.Confidence = &confidence
+	}
+	if _, exists := params["tags"]; exists {
+		tags, err := parseStringSlice(params["tags"])
+		if err != nil {
+			return nil, fmt.Errorf("invalid tags: %v", err)
+		}
+		update.Tags = appendSecurityMetadataTags(tags, params)
+	}
+	if source, ok := params["source"].(string); ok {
+		update.Source = source
+	}
+
+	entry, err := t.repo.UpdateMemoryEntry(ctx, update)
+	if err != nil {
+		return nil, fmt.Errorf("failed to update memory: %v", err)
+	}
+
+	return entry, nil
+}
+
+func (t *TinyBrainServer) handleDeleteMemory(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	memoryID, ok := params["memory_id"].(string)
+	if !ok {
+		memoryID, ok = params["id"].(string)
+	}
+	if !ok {
+		return nil, fmt.Errorf("memory_id is required")
+	}
+
+	if err := t.repo.DeleteMemoryEntry(ctx, memoryID); err != nil {
+		return nil, fmt.Errorf("failed to delete memory: %v", err)
+	}
+
+	return map[string]interface{}{
+		"deleted":   true,
+		"memory_id": memoryID,
+	}, nil
+}
+
 func (t *TinyBrainServer) handleGetMemory(ctx context.Context, params map[string]interface{}) (interface{}, error) {
 	memoryID, ok := params["memory_id"].(string)
+	if !ok {
+		memoryID, ok = params["id"].(string)
+	}
 	if !ok {
 		return nil, fmt.Errorf("memory_id is required")
 	}
@@ -1263,18 +1395,17 @@ func (t *TinyBrainServer) handleSearchMemories(ctx context.Context, params map[s
 		searchType = "semantic"
 	}
 
-	var categories []string
-	if categoriesStr, ok := params["categories"].(string); ok && categoriesStr != "" {
-		if err := json.Unmarshal([]byte(categoriesStr), &categories); err != nil {
-			return nil, fmt.Errorf("invalid categories JSON: %v", err)
-		}
+	categories, err := parseStringSlice(params["categories"])
+	if err != nil {
+		return nil, fmt.Errorf("invalid categories: %v", err)
+	}
+	if category, ok := params["category"].(string); ok && category != "" {
+		categories = append(categories, category)
 	}
 
-	var tags []string
-	if tagsStr, ok := params["tags"].(string); ok && tagsStr != "" {
-		if err := json.Unmarshal([]byte(tagsStr), &tags); err != nil {
-			return nil, fmt.Errorf("invalid tags JSON: %v", err)
-		}
+	tags, err := parseStringSlice(params["tags"])
+	if err != nil {
+		return nil, fmt.Errorf("invalid tags: %v", err)
 	}
 
 	minPriority := 0
@@ -1341,10 +1472,16 @@ func (t *TinyBrainServer) handleGetRelatedMemories(ctx context.Context, params m
 func (t *TinyBrainServer) handleCreateRelationship(ctx context.Context, params map[string]interface{}) (interface{}, error) {
 	sourceID, ok := params["source_memory_id"].(string)
 	if !ok {
+		sourceID, ok = params["source_entry_id"].(string)
+	}
+	if !ok {
 		return nil, fmt.Errorf("source_memory_id is required")
 	}
 
 	targetID, ok := params["target_memory_id"].(string)
+	if !ok {
+		targetID, ok = params["target_entry_id"].(string)
+	}
 	if !ok {
 		return nil, fmt.Errorf("target_memory_id is required")
 	}
@@ -1964,13 +2101,9 @@ func (t *TinyBrainServer) handleCreateContextSnapshot(ctx context.Context, param
 	}
 
 	description, _ := params["description"].(string)
-	contextDataStr, _ := params["context_data"].(string)
-
-	var contextData map[string]interface{}
-	if contextDataStr != "" {
-		if err := json.Unmarshal([]byte(contextDataStr), &contextData); err != nil {
-			return nil, fmt.Errorf("invalid context_data JSON: %v", err)
-		}
+	contextData, err := parseStringMap(params["context_data"])
+	if err != nil {
+		return nil, fmt.Errorf("invalid context_data: %v", err)
 	}
 
 	snapshot, err := t.repo.CreateContextSnapshot(ctx, sessionID, name, description, contextData)
@@ -2397,4 +2530,100 @@ func (t *TinyBrainServer) handleGetSecurityDataSummary(ctx context.Context, para
 		"summary": result,
 		"status":  "success",
 	}, nil
+}
+
+func parseStringMap(value interface{}) (map[string]interface{}, error) {
+	if value == nil {
+		return nil, nil
+	}
+
+	switch typed := value.(type) {
+	case map[string]interface{}:
+		return typed, nil
+	case string:
+		if strings.TrimSpace(typed) == "" {
+			return nil, nil
+		}
+		var parsed map[string]interface{}
+		if err := json.Unmarshal([]byte(typed), &parsed); err != nil {
+			return nil, err
+		}
+		return parsed, nil
+	default:
+		return nil, fmt.Errorf("expected object or JSON object string, got %T", value)
+	}
+}
+
+func parseStringSlice(value interface{}) ([]string, error) {
+	if value == nil {
+		return nil, nil
+	}
+
+	switch typed := value.(type) {
+	case []string:
+		return append([]string{}, typed...), nil
+	case []interface{}:
+		result := make([]string, 0, len(typed))
+		for _, item := range typed {
+			str, ok := item.(string)
+			if !ok {
+				return nil, fmt.Errorf("expected string array item, got %T", item)
+			}
+			result = append(result, str)
+		}
+		return result, nil
+	case string:
+		trimmed := strings.TrimSpace(typed)
+		if trimmed == "" {
+			return nil, nil
+		}
+		if strings.HasPrefix(trimmed, "[") {
+			var result []string
+			if err := json.Unmarshal([]byte(trimmed), &result); err != nil {
+				return nil, err
+			}
+			return result, nil
+		}
+		return []string{typed}, nil
+	default:
+		return nil, fmt.Errorf("expected string array or JSON array string, got %T", value)
+	}
+}
+
+func appendSecurityMetadataTags(tags []string, params map[string]interface{}) []string {
+	result := append([]string{}, tags...)
+	for paramName, tagPrefix := range map[string]string{
+		"intelligence_type": "intelligence",
+		"threat_level":      "threat",
+		"mitre_tactic":      "mitre_tactic",
+		"mitre_technique":   "mitre_technique",
+	} {
+		value, ok := params[paramName].(string)
+		if !ok || strings.TrimSpace(value) == "" {
+			continue
+		}
+		result = append(result, fmt.Sprintf("%s:%s", tagPrefix, value))
+	}
+	return uniqueStrings(result)
+}
+
+func uniqueStrings(values []string) []string {
+	if len(values) == 0 {
+		return values
+	}
+
+	seen := make(map[string]struct{}, len(values))
+	result := make([]string, 0, len(values))
+	for _, value := range values {
+		trimmed := strings.TrimSpace(value)
+		if trimmed == "" {
+			continue
+		}
+		if _, exists := seen[trimmed]; exists {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		result = append(result, trimmed)
+	}
+	return result
 }
