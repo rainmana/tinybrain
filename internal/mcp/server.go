@@ -100,6 +100,10 @@ func (s *Server) ServeStdio() error {
 		}
 
 		response := s.handleRequest(context.Background(), &req)
+		if response == nil {
+			continue
+		}
+
 		responseData, err := json.Marshal(response)
 		if err != nil {
 			s.logger.Error("Failed to marshal response", "error", err)
@@ -125,6 +129,11 @@ func (s *Server) HandleRequest(ctx context.Context, req *MCPRequest) *MCPRespons
 // handleRequest handles an incoming MCP request
 func (s *Server) handleRequest(ctx context.Context, req *MCPRequest) *MCPResponse {
 	s.logger.Debug("Handling request", "method", req.Method, "id", req.ID)
+
+	if req.ID == nil {
+		s.logger.Debug("Ignoring notification", "method", req.Method)
+		return nil
+	}
 
 	switch req.Method {
 	case "initialize":

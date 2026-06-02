@@ -7,6 +7,7 @@ This note tracks the current implementation against the published GitHub Pages d
 TinyBrain is currently a SQLite-backed MCP stdio server for authorized security assessment memory workflows. The verified core is:
 
 - MCP JSON-RPC over stdio with `initialize`, `tools/list`, and `tools/call`.
+- MCP notification handling: JSON-RPC notifications such as `notifications/initialized` are accepted silently, as expected by MCP clients during startup.
 - Session management for security review, penetration testing, exploit development, vulnerability analysis, threat modeling, incident response, intelligence analysis, reverse engineering, malware analysis, and general workflows.
 - Memory create/read/update/delete with priority, confidence, source, tags, security-focused categories, and access tracking.
 - Search by semantic/FTS-style text, exact text, tags, category, priority, confidence, and session.
@@ -48,6 +49,7 @@ Current verification includes:
 
 - Repository unit tests for sessions, memory CRUD, search, relationships, context snapshots, task progress, CVE mapping, risk correlation, compliance mapping, and security repositories.
 - MCP user-flow tests in `cmd/server` that exercise documented prefixed tool names, aliases, intelligence sessions, memory CRUD, search, relationships, context snapshots, and task progress through JSON-RPC-shaped calls.
+- MCP startup compatibility tests verify that JSON-RPC notifications do not emit error responses during client initialization.
 - Pure-Go SQLite storage via `modernc.org/sqlite`, so tests and local builds work without CGO or a C compiler.
 - Dockerfile aligned to Go 1.24 and pure-Go SQLite.
 

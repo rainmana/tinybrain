@@ -301,6 +301,21 @@ Add to your MCP client configuration (e.g., Claude Desktop):
 }
 ```
 
+For Codex app, Codex CLI, or the Codex IDE extension, OpenAI's Codex MCP documentation says MCP servers are configured in `~/.codex/config.toml` and that STDIO servers support `command`, `args`, `env`, and optional `cwd` fields. On Windows, a local Codex app setup can use:
+
+```toml
+[mcp_servers.tinybrain]
+command = 'C:\Users\walec\Development\tinybrain\bin\tinybrain.exe'
+args = []
+cwd = 'C:\Users\walec\Development\tinybrain'
+startup_timeout_sec = 60
+
+[mcp_servers.tinybrain.env]
+TINYBRAIN_DB_PATH = 'C:\Users\walec\.tinybrain\memory.db'
+```
+
+If you configure TinyBrain through the Codex app's MCP settings UI, set the same command, database environment variable, and working directory. After changing MCP configuration, restart Codex or start a fresh Codex session so the client rescans the server tools.
+
 ## 📚 Documentation
 
 For complete documentation, API reference, and detailed guides, visit our comprehensive documentation site:

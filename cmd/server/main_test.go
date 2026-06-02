@@ -146,6 +146,18 @@ func TestRunHealthCheck(t *testing.T) {
 	require.NoError(t, runHealthCheck(filepath.Join(t.TempDir(), "health.db"), logger))
 }
 
+func TestMCPNotificationsAreSilent(t *testing.T) {
+	server, db := newTestMCPServer(t)
+	defer db.Close()
+
+	resp := mcpRoundTrip(t, server, map[string]interface{}{
+		"jsonrpc": "2.0",
+		"method":  "notifications/initialized",
+		"params":  map[string]interface{}{},
+	})
+	require.Nil(t, resp)
+}
+
 func newTestMCPServer(t *testing.T) (*mcp.Server, *database.Database) {
 	t.Helper()
 
