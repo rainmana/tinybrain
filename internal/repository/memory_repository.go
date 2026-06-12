@@ -330,15 +330,14 @@ func (r *MemoryRepository) SearchMemoryEntries(ctx context.Context, req *models.
 		err := r.db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='memory_entries_fts'").Scan(&fts5Exists)
 		if err == nil && fts5Exists > 0 {
 			// The FTS index stores integer rowids, so join on me.rowid (not
-			// the TEXT UUID in me.id). The query is quoted as an FTS5 string
-			// so user input cannot break the MATCH syntax.
+			// the TEXT UUID in me.id).
 			query.WriteString(`
 				AND me.rowid IN (
 					SELECT rowid FROM memory_entries_fts
 					WHERE memory_entries_fts MATCH ?
 				)
 			`)
-			args = append(args, `"`+strings.ReplaceAll(req.Query, `"`, `""`)+`"`)
+			args = append(args, buildFTSQuery(req.Query))
 		} else {
 			// Fallback to LIKE search
 			query.WriteString(" AND (me.title LIKE ? OR me.content LIKE ? OR me.tags LIKE ?)")
@@ -1208,6 +1207,7 @@ func (r *MemoryRepository) BatchUpdateMemoryEntries(ctx context.Context, updates
 	defer tx.Rollback()
 
 	var updatedMemories []*models.MemoryEntry
+	var updatedIDs []string
 
 	for _, update := range updates {
 		// Build dynamic update query
@@ -1262,17 +1262,22 @@ func (r *MemoryRepository) BatchUpdateMemoryEntries(ctx context.Context, updates
 			return nil, fmt.Errorf("failed to update memory entry: %w", err)
 		}
 
-		// Get the updated memory entry
-		memory, err := r.GetMemoryEntry(ctx, update.ID)
-		if err != nil {
-			return nil, fmt.Errorf("failed to get updated memory entry: %w", err)
-		}
-
-		updatedMemories = append(updatedMemories, memory)
+		updatedIDs = append(updatedIDs, update.ID)
 	}
 
 	if err := tx.Commit(); err != nil {
 		return nil, fmt.Errorf("failed to commit transaction: %w", err)
+	}
+
+	// Fetch the updated entries after commit: the connection pool is sized
+	// to a single connection, so querying while the transaction holds it
+	// would deadlock
+	for _, id := range updatedIDs {
+		memory, err := r.GetMemoryEntry(ctx, id)
+		if err != nil {
+			return nil, fmt.Errorf("failed to get updated memory entry: %w", err)
+		}
+		updatedMemories = append(updatedMemories, memory)
 	}
 
 	r.logger.Info("Batch updated memory entries", "count", len(updatedMemories))
@@ -3054,4 +3059,20 @@ func (r *MemoryRepository) storeComplianceMapping(ctx context.Context, mapping *
 	)
 
 	return err
+}
+
+// buildFTSQuery converts free text into a safe FTS5 MATCH expression: each
+// whitespace-separated term is double-quoted (so punctuation cannot break the
+// MATCH syntax) and terms are OR-ed, matching how users expect multi-word
+// memory searches to behave.
+func buildFTSQuery(query string) string {
+	terms := strings.Fields(query)
+	if len(terms) == 0 {
+		return `""`
+	}
+	quoted := make([]string, len(terms))
+	for i, term := range terms {
+		quoted[i] = `"` + strings.ReplaceAll(term, `"`, `""`) + `"`
+	}
+	return strings.Join(quoted, " OR ")
 }

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -123,7 +124,7 @@ func (s *Server) ServeStdio() error {
 			continue
 		}
 
-		response := s.handleRequest(context.Background(), &req)
+		response := s.HandleRequest(context.Background(), &req)
 		if response == nil {
 			// Notifications expect no response
 			continue
@@ -144,12 +145,14 @@ func (s *Server) ServeStdio() error {
 	return nil
 }
 
-// handleRequest handles an incoming MCP request
-func (s *Server) handleRequest(ctx context.Context, req *MCPRequest) *MCPResponse {
+// HandleRequest handles an incoming MCP request. It returns nil for
+// notifications, which must not receive a response.
+func (s *Server) HandleRequest(ctx context.Context, req *MCPRequest) *MCPResponse {
 	s.logger.Debug("Handling request", "method", req.Method, "id", req.ID)
 
-	// JSON-RPC notifications (no id) must not receive a response
-	if req.ID == nil {
+	// MCP notifications (e.g. notifications/initialized, notifications/cancelled)
+	// must be accepted silently
+	if strings.HasPrefix(req.Method, "notifications/") {
 		return nil
 	}
 
@@ -242,6 +245,10 @@ func (s *Server) handleToolsCall(ctx context.Context, req *MCPRequest) *MCPRespo
 			},
 		}
 	}
+
+	// The published docs show tool names prefixed by the MCP client's server
+	// label (e.g. mcp_tinybrain-mcp-server_create_session); accept that form
+	name = strings.TrimPrefix(name, "mcp_tinybrain-mcp-server_")
 
 	s.mu.RLock()
 	handler, exists := s.handlers[name]

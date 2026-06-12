@@ -1,0 +1,56 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Go tests (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - ubuntu-latest
+          - windows-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Download modules
+        run: go mod download
+
+      - name: Run full test suite
+        run: go test -v ./...
+
+      - name: Run executable MCP user-flow tests
+        run: go test -v ./cmd/server -run TestMCPExecutableAuthorizedAssessmentFlow -count=1
+
+      - name: Run vet
+        run: go vet ./...
+
+      - name: Build server (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path bin | Out-Null
+          go build -o bin/tinybrain.exe ./cmd/server
+
+      - name: Build server (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p bin
+          go build -o bin/tinybrain ./cmd/server

@@ -76,7 +76,7 @@ func (t *TinyBrainServer) registerTools(s *mcp.Server) {
 				},
 				"task_type": map[string]interface{}{
 					"type":        "string",
-					"description": "Type of security task: security_review, penetration_test, exploit_dev, vulnerability_analysis, threat_modeling, incident_response, intelligence_analysis, general",
+					"description": "Type of security task: security_review, penetration_test, exploit_dev, vulnerability_analysis, threat_modeling, incident_response, intelligence_analysis, reverse_engineering, malware_analysis, general",
 				},
 				"intelligence_type": map[string]interface{}{
 					"type":        "string",
@@ -1280,17 +1280,9 @@ func (t *TinyBrainServer) handleStoreMemory(ctx context.Context, params map[stri
 		confidence = confidenceVal
 	}
 
-	var tags []string
-	if tagsStr, ok := params["tags"].(string); ok && tagsStr != "" {
-		if err := json.Unmarshal([]byte(tagsStr), &tags); err != nil {
-			return nil, fmt.Errorf("invalid tags JSON: %v", err)
-		}
-	} else if tagsArr, ok := params["tags"].([]interface{}); ok {
-		for _, tag := range tagsArr {
-			if tagStr, ok := tag.(string); ok {
-				tags = append(tags, tagStr)
-			}
-		}
+	tags, err := stringListParam(params, "tags")
+	if err != nil {
+		return nil, err
 	}
 
 	// Intelligence-gathering attributes are persisted as namespaced tags so
@@ -1354,22 +1346,18 @@ func (t *TinyBrainServer) handleSearchMemories(ctx context.Context, params map[s
 		searchType = "semantic"
 	}
 
-	var categories []string
-	if categoriesStr, ok := params["categories"].(string); ok && categoriesStr != "" {
-		if err := json.Unmarshal([]byte(categoriesStr), &categories); err != nil {
-			return nil, fmt.Errorf("invalid categories JSON: %v", err)
-		}
+	categories, err := stringListParam(params, "categories")
+	if err != nil {
+		return nil, err
 	}
 	// Documented singular form
 	if category, ok := params["category"].(string); ok && category != "" {
 		categories = append(categories, category)
 	}
 
-	var tags []string
-	if tagsStr, ok := params["tags"].(string); ok && tagsStr != "" {
-		if err := json.Unmarshal([]byte(tagsStr), &tags); err != nil {
-			return nil, fmt.Errorf("invalid tags JSON: %v", err)
-		}
+	tags, err := stringListParam(params, "tags")
+	if err != nil {
+		return nil, err
 	}
 
 	minPriority := 0
@@ -1434,12 +1422,19 @@ func (t *TinyBrainServer) handleGetRelatedMemories(ctx context.Context, params m
 }
 
 func (t *TinyBrainServer) handleCreateRelationship(ctx context.Context, params map[string]interface{}) (interface{}, error) {
+	// Accept both source_memory_id (tool schema) and source_entry_id (docs)
 	sourceID, ok := params["source_memory_id"].(string)
+	if !ok {
+		sourceID, ok = params["source_entry_id"].(string)
+	}
 	if !ok {
 		return nil, fmt.Errorf("source_memory_id is required")
 	}
 
 	targetID, ok := params["target_memory_id"].(string)
+	if !ok {
+		targetID, ok = params["target_entry_id"].(string)
+	}
 	if !ok {
 		return nil, fmt.Errorf("target_memory_id is required")
 	}
@@ -1515,16 +1510,6 @@ func (t *TinyBrainServer) handleGetContextSummary(ctx context.Context, params ma
 }
 
 func (t *TinyBrainServer) handleUpdateTaskProgress(ctx context.Context, params map[string]interface{}) (interface{}, error) {
-	sessionID, ok := params["session_id"].(string)
-	if !ok {
-		return nil, fmt.Errorf("session_id is required")
-	}
-
-	taskName, ok := params["task_name"].(string)
-	if !ok {
-		return nil, fmt.Errorf("task_name is required")
-	}
-
 	stage, ok := params["stage"].(string)
 	if !ok {
 		return nil, fmt.Errorf("stage is required")
@@ -1542,22 +1527,32 @@ func (t *TinyBrainServer) handleUpdateTaskProgress(ctx context.Context, params m
 		progressPercentage = int(progressVal)
 	}
 
-	// First, get the task ID by finding the task with the given name and session
-	tasks, err := t.repo.ListTaskProgress(ctx, sessionID, "", 100, 0)
-	if err != nil {
-		return nil, fmt.Errorf("failed to list tasks: %v", err)
-	}
-
-	var taskID string
-	for _, task := range tasks {
-		if task.TaskName == taskName {
-			taskID = task.ID
-			break
-		}
-	}
-
+	// The task may be addressed directly by task_id (documented form) or by
+	// session_id + task_name
+	taskID, _ := params["task_id"].(string)
 	if taskID == "" {
-		return nil, fmt.Errorf("task not found: %s", taskName)
+		sessionID, ok := params["session_id"].(string)
+		if !ok {
+			return nil, fmt.Errorf("task_id or session_id is required")
+		}
+		taskName, ok := params["task_name"].(string)
+		if !ok {
+			return nil, fmt.Errorf("task_name is required when task_id is not provided")
+		}
+
+		tasks, err := t.repo.ListTaskProgress(ctx, sessionID, "", 100, 0)
+		if err != nil {
+			return nil, fmt.Errorf("failed to list tasks: %v", err)
+		}
+		for _, task := range tasks {
+			if task.TaskName == taskName {
+				taskID = task.ID
+				break
+			}
+		}
+		if taskID == "" {
+			return nil, fmt.Errorf("task not found: %s", taskName)
+		}
 	}
 
 	progress, err := t.repo.UpdateTaskProgress(ctx, taskID, stage, status, notes, progressPercentage)
@@ -2059,13 +2054,18 @@ func (t *TinyBrainServer) handleCreateContextSnapshot(ctx context.Context, param
 	}
 
 	description, _ := params["description"].(string)
-	contextDataStr, _ := params["context_data"].(string)
 
+	// context_data may be a JSON string (per the docs) or a JSON object
 	var contextData map[string]interface{}
-	if contextDataStr != "" {
-		if err := json.Unmarshal([]byte(contextDataStr), &contextData); err != nil {
-			return nil, fmt.Errorf("invalid context_data JSON: %v", err)
+	switch v := params["context_data"].(type) {
+	case string:
+		if v != "" {
+			if err := json.Unmarshal([]byte(v), &contextData); err != nil {
+				return nil, fmt.Errorf("invalid context_data JSON: %v", err)
+			}
 		}
+	case map[string]interface{}:
+		contextData = v
 	}
 
 	snapshot, err := t.repo.CreateContextSnapshot(ctx, sessionID, name, description, contextData)
@@ -2523,11 +2523,11 @@ func (t *TinyBrainServer) handleUpdateMemory(ctx context.Context, params map[str
 		c := v
 		update.Confidence = &c
 	}
-	if tagsStr, ok := params["tags"].(string); ok && tagsStr != "" {
-		var tags []string
-		if err := json.Unmarshal([]byte(tagsStr), &tags); err != nil {
-			return nil, fmt.Errorf("invalid tags JSON: %v", err)
-		}
+	tags, err := stringListParam(params, "tags")
+	if err != nil {
+		return nil, err
+	}
+	if tags != nil {
 		update.Tags = tags
 	}
 
@@ -2556,4 +2556,41 @@ func (t *TinyBrainServer) handleDeleteMemory(ctx context.Context, params map[str
 		"deleted":   true,
 		"memory_id": memoryID,
 	}, nil
+}
+
+// stringListParam reads a parameter that LLM clients send either as a JSON
+// array string (`"[\"a\",\"b\"]"`, the documented form) or a real JSON array.
+// Returns nil when the parameter is absent or empty.
+func stringListParam(params map[string]interface{}, key string) ([]string, error) {
+	switch v := params[key].(type) {
+	case string:
+		if v == "" {
+			return nil, nil
+		}
+		var values []string
+		if err := json.Unmarshal([]byte(v), &values); err != nil {
+			return nil, fmt.Errorf("invalid %s JSON: %v", key, err)
+		}
+		return values, nil
+	case []interface{}:
+		values := make([]string, 0, len(v))
+		for _, item := range v {
+			if s, ok := item.(string); ok {
+				values = append(values, s)
+			}
+		}
+		return values, nil
+	}
+	return nil, nil
+}
+
+// runHealthCheck opens the database at dbPath and verifies it is usable.
+// Used by tests and suitable for container health checks.
+func runHealthCheck(dbPath string, logger *log.Logger) error {
+	db, err := database.NewDatabase(dbPath, logger)
+	if err != nil {
+		return fmt.Errorf("health check failed to open database: %w", err)
+	}
+	defer db.Close()
+	return db.HealthCheck()
 }
