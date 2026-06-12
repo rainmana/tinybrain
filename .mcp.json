@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "tinybrain": {
+      "command": "tinybrain",
+      "args": [],
+      "env": {
+        "TINYBRAIN_DB_PATH": "${HOME}/.tinybrain/memory.db"
+      }
+    }
+  }
+}

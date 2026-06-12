@@ -1,0 +1,23 @@
+{
+  "name": "tinybrain",
+  "version": "3.0.1",
+  "description": "Security-focused persistent memory for AI assistants: a SQLite-backed MCP server plus skills that teach Claude how to capture findings, build a knowledge graph of an engagement, and recall it across sessions. For authorized security work — code review, CTFs, threat modeling, and intelligence analysis.",
+  "author": {
+    "name": "Alec Akin",
+    "url": "https://github.com/rainmana"
+  },
+  "homepage": "https://rainmana.github.io/tinybrain/",
+  "repository": "https://github.com/rainmana/tinybrain",
+  "license": "MIT",
+  "keywords": [
+    "security",
+    "memory",
+    "mcp",
+    "pentest",
+    "threat-intel",
+    "mitre-attack",
+    "code-review",
+    "ctf"
+  ],
+  "mcpServers": "./.mcp.json"
+}

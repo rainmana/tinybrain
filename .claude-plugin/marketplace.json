@@ -1,0 +1,21 @@
+{
+  "name": "tinybrain-marketplace",
+  "description": "TinyBrain: security-focused persistent memory (MCP server + skills) for AI assistants doing authorized security work.",
+  "owner": {
+    "name": "Alec Akin",
+    "url": "https://github.com/rainmana"
+  },
+  "plugins": [
+    {
+      "name": "tinybrain",
+      "description": "One install for the TinyBrain MCP server registration plus skills that teach Claude how to capture findings, build an engagement knowledge graph, and recall it across sessions. For code review, CTFs, threat modeling, and intelligence analysis. Requires the 'tinybrain' binary on PATH (go install github.com/rainmana/tinybrain/v3/cmd/tinybrain@latest).",
+      "version": "3.0.1",
+      "source": "./",
+      "homepage": "https://rainmana.github.io/tinybrain/",
+      "author": {
+        "name": "Alec Akin",
+        "url": "https://github.com/rainmana"
+      }
+    }
+  ]
+}
