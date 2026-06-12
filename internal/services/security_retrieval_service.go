@@ -6,8 +6,8 @@ import (
 	"strings"
 
 	"github.com/charmbracelet/log"
-	"github.com/rainmana/tinybrain/internal/models"
-	"github.com/rainmana/tinybrain/internal/repository"
+	"github.com/rainmana/tinybrain/v3/internal/models"
+	"github.com/rainmana/tinybrain/v3/internal/repository"
 )
 
 // SecurityRetrievalService handles intelligent retrieval and summarization of security data

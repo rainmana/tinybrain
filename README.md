@@ -89,7 +89,7 @@ TinyBrain is a comprehensive memory storage system designed specifically for sec
 - **Notification Management**: Mark notifications as read, filter by session, priority-based sorting
 
 ### Developer Experience
-- **Simple Installation**: `go install github.com/rainmana/tinybrain/cmd/tinybrain@latest`
+- **Simple Installation**: `go install github.com/rainmana/tinybrain/v3/cmd/tinybrain@latest`
 - **Comprehensive Logging**: Detailed logging with structured output
 - **Extensive Testing**: Full test coverage for all MCP tool handlers
 - **Docker Support**: Containerized deployment ready
@@ -221,10 +221,10 @@ chmod +x tinybrain
 
 ```bash
 # Install latest version
-go install github.com/rainmana/tinybrain/cmd/tinybrain@latest
+go install github.com/rainmana/tinybrain/v3/cmd/tinybrain@latest
 
 # Install specific version
-go install github.com/rainmana/tinybrain/cmd/tinybrain@v1.2.2
+go install github.com/rainmana/tinybrain/v3/cmd/tinybrain@latest
 
 # The binary will be installed as 'tinybrain' in your $GOPATH/bin or $GOBIN
 # Make sure $GOPATH/bin or $GOBIN is in your PATH
@@ -244,6 +244,30 @@ go build -o tinybrain ./cmd/tinybrain
 docker pull rainmana/tinybrain:latest
 docker run -p 8090:8090 rainmana/tinybrain
 ```
+
+### Claude Code Plugin (MCP server + skills in one install)
+
+TinyBrain ships as a Claude Code plugin that registers the MCP server **and** installs
+skills teaching Claude how to use it well (capture findings as you go, build an engagement
+knowledge graph, recall it across sessions). The plugin includes a core `using-tinybrain`
+skill plus domain workflows for code review, CTFs, and threat intelligence.
+
+First install the binary (the plugin's MCP config runs `tinybrain` from your PATH):
+
+```bash
+go install github.com/rainmana/tinybrain/v3/cmd/tinybrain@latest
+```
+
+Then add the marketplace and install the plugin from inside Claude Code:
+
+```
+/plugin marketplace add rainmana/tinybrain
+/plugin install tinybrain@tinybrain-marketplace
+```
+
+That's it — the `tinybrain` MCP server is registered (pointed at `~/.tinybrain/memory.db`)
+and the skills activate automatically when you do security work. To point at a different
+database, set `TINYBRAIN_DB_PATH` in your environment before launching Claude Code.
 
 ### Basic Usage
 
@@ -329,7 +353,7 @@ If you encounter issues with `go install`, try these solutions:
 ```bash
 # If you get "main redeclared" errors, ensure you're using v1.2.1 or later
 # Older versions (v1.2.0) had duplicate files that caused build errors
-go install github.com/rainmana/tinybrain/cmd/server@v1.2.1
+go install github.com/rainmana/tinybrain/v3/cmd/server@latest
 
 # If you get authentication errors, use direct clone method
 git clone https://github.com/rainmana/tinybrain.git
@@ -340,10 +364,10 @@ go build -o server ./cmd/server
 git config --global url."git@github.com:".insteadOf "https://github.com/"
 
 # For Go module proxy issues, use direct mode
-GOPROXY=direct go install github.com/rainmana/tinybrain/cmd/server@latest
+GOPROXY=direct go install github.com/rainmana/tinybrain/v3/cmd/server@latest
 
 # For checksum database errors (temporary issue with new releases)
-GOSUMDB=off go install github.com/rainmana/tinybrain/cmd/server@latest
+GOSUMDB=off go install github.com/rainmana/tinybrain/v3/cmd/server@latest
 ```
 
 **Common Issues**:
@@ -369,7 +393,7 @@ Add to your MCP client configuration (e.g., Claude Desktop):
 }
 ```
 
-**Note**: The binary name is `tinybrain` (from `cmd/tinybrain`); `go install github.com/rainmana/tinybrain/cmd/server@latest` installs the same program as `server`. The SQLite database is created at `~/.tinybrain/memory.db` by default.
+**Note**: The binary name is `tinybrain` (from `cmd/tinybrain`); `go install github.com/rainmana/tinybrain/v3/cmd/server@latest` installs the same program as `server`. The SQLite database is created at `~/.tinybrain/memory.db` by default.
 
 ## 📚 Documentation
 

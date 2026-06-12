@@ -11,11 +11,11 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
-	"github.com/rainmana/tinybrain/internal/mcp"
+	"github.com/rainmana/tinybrain/v3/internal/mcp"
 )
 
 // Version is the binary version, overridable at build time via
-// -ldflags "-X github.com/rainmana/tinybrain/internal/app.Version=v1.2.3"
+// -ldflags "-X github.com/rainmana/tinybrain/v3/internal/app.Version=v1.2.3"
 var Version = "dev"
 
 const usage = `TinyBrain 🧠 - Security-focused memory storage MCP server

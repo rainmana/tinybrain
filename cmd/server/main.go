@@ -6,7 +6,7 @@
 // It is identical to cmd/tinybrain; the binary is just named "server".
 package main
 
-import "github.com/rainmana/tinybrain/internal/app"
+import "github.com/rainmana/tinybrain/v3/internal/app"
 
 func main() {
 	app.Main()

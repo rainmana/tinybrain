@@ -10,7 +10,7 @@ BUILD_TIME=$(shell date -u '+%Y-%m-%d_%H:%M:%S')
 GO_VERSION=$(shell go version | awk '{print $$3}')
 
 # Build flags
-LDFLAGS=-ldflags "-X github.com/rainmana/tinybrain/internal/app.Version=$(VERSION)"
+LDFLAGS=-ldflags "-X github.com/rainmana/tinybrain/v3/internal/app.Version=$(VERSION)"
 
 # Default target
 all: build

@@ -8,11 +8,11 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/google/uuid"
-	"github.com/rainmana/tinybrain/internal/database"
-	"github.com/rainmana/tinybrain/internal/mcp"
-	"github.com/rainmana/tinybrain/internal/models"
-	"github.com/rainmana/tinybrain/internal/repository"
-	"github.com/rainmana/tinybrain/internal/services"
+	"github.com/rainmana/tinybrain/v3/internal/database"
+	"github.com/rainmana/tinybrain/v3/internal/mcp"
+	"github.com/rainmana/tinybrain/v3/internal/models"
+	"github.com/rainmana/tinybrain/v3/internal/repository"
+	"github.com/rainmana/tinybrain/v3/internal/services"
 )
 
 // TinyBrainServer represents the main MCP server for security-focused memory storage

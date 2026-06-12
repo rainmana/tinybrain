@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/rainmana/tinybrain/internal/models"
+	"github.com/rainmana/tinybrain/v3/internal/models"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

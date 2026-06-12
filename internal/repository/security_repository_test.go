@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
-	"github.com/rainmana/tinybrain/internal/database"
-	"github.com/rainmana/tinybrain/internal/models"
+	"github.com/rainmana/tinybrain/v3/internal/database"
+	"github.com/rainmana/tinybrain/v3/internal/models"
 	"github.com/stretchr/testify/assert"
 )
 

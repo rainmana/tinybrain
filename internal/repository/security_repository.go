@@ -9,8 +9,8 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
-	"github.com/rainmana/tinybrain/internal/database"
-	"github.com/rainmana/tinybrain/internal/models"
+	"github.com/rainmana/tinybrain/v3/internal/database"
+	"github.com/rainmana/tinybrain/v3/internal/models"
 )
 
 // SecurityRepositoryInterface defines the interface for security data operations

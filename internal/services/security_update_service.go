@@ -6,7 +6,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
-	"github.com/rainmana/tinybrain/internal/repository"
+	"github.com/rainmana/tinybrain/v3/internal/repository"
 )
 
 // SecurityUpdateService handles intelligent updates to security datasets

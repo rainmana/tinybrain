@@ -8,10 +8,10 @@ import (
 	"testing"
 
 	"github.com/charmbracelet/log"
-	"github.com/rainmana/tinybrain/internal/database"
-	"github.com/rainmana/tinybrain/internal/mcp"
-	"github.com/rainmana/tinybrain/internal/repository"
-	"github.com/rainmana/tinybrain/internal/services"
+	"github.com/rainmana/tinybrain/v3/internal/database"
+	"github.com/rainmana/tinybrain/v3/internal/mcp"
+	"github.com/rainmana/tinybrain/v3/internal/repository"
+	"github.com/rainmana/tinybrain/v3/internal/services"
 	"github.com/stretchr/testify/require"
 )
 

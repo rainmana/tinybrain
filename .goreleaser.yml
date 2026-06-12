@@ -27,7 +27,7 @@ builds:
         goarch: arm64
     ldflags:
       - -s -w
-      - -X github.com/rainmana/tinybrain/internal/app.Version={{.Version}}
+      - -X github.com/rainmana/tinybrain/v3/internal/app.Version={{.Version}}
 
 archives:
   - id: tinybrain
@@ -86,7 +86,7 @@ release:
     
     **Using go install:**
     ```bash
-    go install github.com/rainmana/tinybrain/cmd/tinybrain@{{ .Tag }}
+    go install github.com/rainmana/tinybrain/v3/cmd/tinybrain@{{ .Tag }}
     ```
     
     **Download pre-built binary:**

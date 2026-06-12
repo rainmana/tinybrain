@@ -4,7 +4,7 @@
 //	go install github.com/rainmana/tinybrain/cmd/tinybrain@latest
 package main
 
-import "github.com/rainmana/tinybrain/internal/app"
+import "github.com/rainmana/tinybrain/v3/internal/app"
 
 func main() {
 	app.Main()

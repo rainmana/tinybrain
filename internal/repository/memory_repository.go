@@ -12,7 +12,7 @@ import (
 
 	"github.com/charmbracelet/log"
 	"github.com/google/uuid"
-	"github.com/rainmana/tinybrain/internal/models"
+	"github.com/rainmana/tinybrain/v3/internal/models"
 )
 
 // MemoryRepository handles all database operations for memory management
