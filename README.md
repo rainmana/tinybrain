@@ -4,7 +4,7 @@
 [![Go Version](https://img.shields.io/badge/Go-1.24+-blue.svg)](https://golang.org/)
 [![MCP Protocol](https://img.shields.io/badge/MCP-Protocol-green.svg)](https://modelcontextprotocol.io/)
 [![Security Focused](https://img.shields.io/badge/Security-Focused-red.svg)](https://github.com/rainmana/tinybrain)
-[![Version](https://img.shields.io/badge/version-v1.2.1-blue.svg)](https://github.com/rainmana/tinybrain/releases)
+[![Version](https://img.shields.io/badge/version-v3.0.1-blue.svg)](https://github.com/rainmana/tinybrain/releases)
 
 **Security-Focused LLM Memory Storage with Intelligence Gathering, Reverse Engineering, and MITRE ATT&CK Integration**
 
@@ -351,27 +351,23 @@ finding := &IntelligenceFinding{
 If you encounter issues with `go install`, try these solutions:
 
 ```bash
-# If you get "main redeclared" errors, ensure you're using v1.2.1 or later
-# Older versions (v1.2.0) had duplicate files that caused build errors
-go install github.com/rainmana/tinybrain/v3/cmd/server@latest
+# Standard install (note the /v3 in the module path — required for v3.x)
+go install github.com/rainmana/tinybrain/v3/cmd/tinybrain@latest
 
-# If you get authentication errors, use direct clone method
+# Build from a clone instead
 git clone https://github.com/rainmana/tinybrain.git
 cd tinybrain
-go build -o server ./cmd/server
-
-# If repository is private, ensure you have access
-git config --global url."git@github.com:".insteadOf "https://github.com/"
+go build -o tinybrain ./cmd/tinybrain
 
 # For Go module proxy issues, use direct mode
-GOPROXY=direct go install github.com/rainmana/tinybrain/v3/cmd/server@latest
+GOPROXY=direct go install github.com/rainmana/tinybrain/v3/cmd/tinybrain@latest
 
-# For checksum database errors (temporary issue with new releases)
-GOSUMDB=off go install github.com/rainmana/tinybrain/v3/cmd/server@latest
+# For checksum database errors right after a new release
+GOSUMDB=off go install github.com/rainmana/tinybrain/v3/cmd/tinybrain@latest
 ```
 
 **Common Issues**:
-- **"main redeclared" error**: You're using an old version. Use `@v1.2.1` or `@latest`
+- **"module path must match major version" error**: Include the `/v3` in the path — `go install github.com/rainmana/tinybrain/v3/cmd/tinybrain@latest`
 - **Binary not found**: Ensure `$GOPATH/bin` or `$GOBIN` is in your PATH
 - **Checksum errors**: Wait a few minutes after a new release, or temporarily use `GOSUMDB=off`
 
@@ -615,12 +611,12 @@ docker run --rm -it \
 ## 🛡️ Security Datasets & Templates
 
 ### **Comprehensive Security Patterns**
-- **[Security Code Review Dataset](SECURITY_CODE_REVIEW_DATASET.md)** - OWASP Top 10 2021 patterns, CWE vulnerabilities, and exploitation techniques
-- **[Multi-Language Security Patterns](MULTI_LANGUAGE_SECURITY_PATTERNS.md)** - Language-specific vulnerability patterns for 10 programming languages
-- **[CWE Security Patterns](CWE_SECURITY_PATTERNS.md)** - CWE Top 25 Most Dangerous Software Errors with comprehensive vulnerability patterns
-- **[CWE LLM Dataset](CWE_LLM_DATASET.json)** - LLM-optimized CWE dataset in structured JSON format for efficient consumption
-- **[CWE TinyBrain Integration](CWE_TINYBRAIN_INTEGRATION.md)** - Integration guide for CWE dataset with TinyBrain memory system
-- **[TinyBrain Security Templates](TINYBRAIN_SECURITY_TEMPLATES.md)** - Pre-configured memory templates for consistent security assessment storage
+
+The security pattern libraries, CWE references, and templates are published on the
+[documentation site](https://rainmana.github.io/tinybrain/security-patterns/):
+
+- **[Security Patterns](https://rainmana.github.io/tinybrain/security-patterns/)** - OWASP Top 10 2021 patterns, CWE Top 25, multi-language vulnerability patterns, and exploitation techniques
+- **[CWE LLM Dataset](CWE_LLM_DATASET.json)** - LLM-optimized CWE dataset in structured JSON format for efficient consumption (ships in this repo)
 
 ### **AI Assistant Configurations**
 - **[Cursor Rules](.cursorrules)** - Security assessment rules for Cursor AI assistant
