@@ -120,7 +120,7 @@ func (r *MemoryRepository) ListSessions(ctx context.Context, taskType string, st
 		args = append(args, status)
 	}
 
-	query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+	query += " ORDER BY created_at DESC, rowid DESC LIMIT ? OFFSET ?"
 	args = append(args, limit, offset)
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
@@ -662,7 +662,7 @@ func (r *MemoryRepository) ListContextSnapshots(ctx context.Context, sessionID s
 		SELECT id, session_id, name, description, context_data, memory_summary, created_at
 		FROM context_snapshots
 		WHERE session_id = ?
-		ORDER BY created_at DESC
+		ORDER BY created_at DESC, rowid DESC
 		LIMIT ? OFFSET ?
 	`
 
@@ -770,7 +770,7 @@ func (r *MemoryRepository) CheckForDuplicates(ctx context.Context, sessionID, ti
 				)
 			)
 		)
-		ORDER BY created_at DESC
+		ORDER BY created_at DESC, rowid DESC
 		LIMIT 5
 	`
 
@@ -2435,7 +2435,7 @@ func (r *MemoryRepository) ListTaskProgress(ctx context.Context, sessionID strin
 		args = append(args, status)
 	}
 
-	query += " ORDER BY created_at DESC LIMIT ? OFFSET ?"
+	query += " ORDER BY created_at DESC, rowid DESC LIMIT ? OFFSET ?"
 	args = append(args, limit, offset)
 
 	rows, err := r.db.QueryContext(ctx, query, args...)
@@ -2551,7 +2551,7 @@ func (r *MemoryRepository) GetCVEMapping(ctx context.Context, sessionID, cweID s
 		SELECT id, session_id, cwe_id, cve_list, last_updated, confidence, source, created_at, updated_at
 		FROM cve_mappings
 		WHERE session_id = ? AND cwe_id = ?
-		ORDER BY created_at DESC
+		ORDER BY created_at DESC, rowid DESC
 		LIMIT 1
 	`
 
