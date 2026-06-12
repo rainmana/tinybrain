@@ -26,7 +26,7 @@ func TestCreateTaskProgress(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create task progress
-	progress, err := repo.CreateTaskProgress(ctx, session.ID, "Vulnerability Assessment", 
+	progress, err := repo.CreateTaskProgress(ctx, session.ID, "Vulnerability Assessment",
 		"Initial Discovery", "in_progress", "Starting assessment", 25)
 	require.NoError(t, err)
 
@@ -57,12 +57,12 @@ func TestUpdateTaskProgress(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create task progress
-	progress, err := repo.CreateTaskProgress(ctx, session.ID, "Vulnerability Assessment", 
+	progress, err := repo.CreateTaskProgress(ctx, session.ID, "Vulnerability Assessment",
 		"Initial Discovery", "pending", "Starting assessment", 0)
 	require.NoError(t, err)
 
 	// Update task progress
-	updated, err := repo.UpdateTaskProgress(ctx, progress.ID, "Validation", "in_progress", 
+	updated, err := repo.UpdateTaskProgress(ctx, progress.ID, "Validation", "in_progress",
 		"Validating findings", 50)
 	require.NoError(t, err)
 
@@ -74,7 +74,7 @@ func TestUpdateTaskProgress(t *testing.T) {
 	assert.NotNil(t, updated.StartedAt) // Should be set when transitioning to in_progress
 
 	// Update to completed
-	completed, err := repo.UpdateTaskProgress(ctx, progress.ID, "Completed", "completed", 
+	completed, err := repo.UpdateTaskProgress(ctx, progress.ID, "Completed", "completed",
 		"Assessment complete", 100)
 	require.NoError(t, err)
 
@@ -100,7 +100,7 @@ func TestGetTaskProgress(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create task progress
-	progress, err := repo.CreateTaskProgress(ctx, session.ID, "Vulnerability Assessment", 
+	progress, err := repo.CreateTaskProgress(ctx, session.ID, "Vulnerability Assessment",
 		"Initial Discovery", "in_progress", "Starting assessment", 25)
 	require.NoError(t, err)
 
@@ -146,7 +146,7 @@ func TestListTaskProgress(t *testing.T) {
 	}
 
 	for _, task := range tasks {
-		_, err := repo.CreateTaskProgress(ctx, session.ID, task.name, task.stage, 
+		_, err := repo.CreateTaskProgress(ctx, session.ID, task.name, task.stage,
 			task.status, task.notes, 0)
 		require.NoError(t, err)
 	}
@@ -186,21 +186,21 @@ func TestTaskProgressStatusTransitions(t *testing.T) {
 	require.NoError(t, err)
 
 	// Create task in pending status
-	progress, err := repo.CreateTaskProgress(ctx, session.ID, "Test Task", 
+	progress, err := repo.CreateTaskProgress(ctx, session.ID, "Test Task",
 		"Initial", "pending", "Created", 0)
 	require.NoError(t, err)
 	assert.Nil(t, progress.StartedAt)
 	assert.Nil(t, progress.CompletedAt)
 
 	// Transition to in_progress
-	progress, err = repo.UpdateTaskProgress(ctx, progress.ID, "Working", "in_progress", 
+	progress, err = repo.UpdateTaskProgress(ctx, progress.ID, "Working", "in_progress",
 		"Started working", 25)
 	require.NoError(t, err)
 	assert.NotNil(t, progress.StartedAt)
 	assert.Nil(t, progress.CompletedAt)
 
 	// Transition to completed
-	progress, err = repo.UpdateTaskProgress(ctx, progress.ID, "Done", "completed", 
+	progress, err = repo.UpdateTaskProgress(ctx, progress.ID, "Done", "completed",
 		"Finished", 100)
 	require.NoError(t, err)
 	assert.NotNil(t, progress.StartedAt)

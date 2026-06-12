@@ -201,11 +201,19 @@ func (s *SecurityRetrievalService) summarizeNVDResults(results []interface{}) []
 
 	for i, result := range results {
 		if cve, ok := result.(models.NVDCVE); ok {
+			var severity interface{}
+			if cve.Severity != nil {
+				severity = *cve.Severity
+			}
+			var cvssV3 interface{}
+			if cve.CVSSV3Score != nil {
+				cvssV3 = *cve.CVSSV3Score
+			}
 			summary := map[string]interface{}{
 				"id":                cve.ID,
 				"description":       truncateString(cve.Description, 200),
-				"severity":          cve.Severity,
-				"cvss_v3":           cve.CVSSV3Score,
+				"severity":          severity,
+				"cvss_v3":           cvssV3,
 				"published":         cve.PublishedDate,
 				"cwe_ids":           cve.CWEIDs,
 				"affected_products": truncateSlice(cve.AffectedProducts, 5),

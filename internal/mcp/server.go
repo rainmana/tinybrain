@@ -81,11 +81,36 @@ func (s *Server) AddTool(name, description string, inputSchema map[string]interf
 	s.handlers[name] = handler
 }
 
+// AddToolAlias registers an existing tool under an additional name,
+// sharing the original tool's schema and handler.
+func (s *Server) AddToolAlias(alias, existing, description string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	tool, ok := s.tools[existing]
+	if !ok {
+		s.logger.Error("Cannot alias unknown tool", "alias", alias, "existing", existing)
+		return
+	}
+	if description == "" {
+		description = tool.Description
+	}
+	s.tools[alias] = Tool{
+		Name:        alias,
+		Description: description,
+		InputSchema: tool.InputSchema,
+	}
+	s.handlers[alias] = s.handlers[existing]
+}
+
 // ServeStdio starts the server using stdio transport
 func (s *Server) ServeStdio() error {
 	s.logger.Info("Starting MCP server", "name", s.name, "version", s.version)
 
 	scanner := bufio.NewScanner(os.Stdin)
+	// Allow large payloads (memory contents, context snapshots) beyond the
+	// 64KB bufio default
+	scanner.Buffer(make([]byte, 0, 1024*1024), 16*1024*1024)
 	for scanner.Scan() {
 		line := scanner.Text()
 		if line == "" {
@@ -99,6 +124,10 @@ func (s *Server) ServeStdio() error {
 		}
 
 		response := s.handleRequest(context.Background(), &req)
+		if response == nil {
+			// Notifications expect no response
+			continue
+		}
 		responseData, err := json.Marshal(response)
 		if err != nil {
 			s.logger.Error("Failed to marshal response", "error", err)
@@ -119,9 +148,16 @@ func (s *Server) ServeStdio() error {
 func (s *Server) handleRequest(ctx context.Context, req *MCPRequest) *MCPResponse {
 	s.logger.Debug("Handling request", "method", req.Method, "id", req.ID)
 
+	// JSON-RPC notifications (no id) must not receive a response
+	if req.ID == nil {
+		return nil
+	}
+
 	switch req.Method {
 	case "initialize":
 		return s.handleInitialize(req)
+	case "ping":
+		return &MCPResponse{JSONRPC: "2.0", ID: req.ID, Result: map[string]interface{}{}}
 	case "tools/list":
 		return s.handleToolsList(req)
 	case "tools/call":

@@ -10,7 +10,7 @@ BUILD_TIME=$(shell date -u '+%Y-%m-%d_%H:%M:%S')
 GO_VERSION=$(shell go version | awk '{print $$3}')
 
 # Build flags
-LDFLAGS=-ldflags "-X main.Version=$(VERSION) -X main.BuildTime=$(BUILD_TIME) -X main.GoVersion=$(GO_VERSION)"
+LDFLAGS=-ldflags "-X github.com/rainmana/tinybrain/internal/app.Version=$(VERSION)"
 
 # Default target
 all: build
@@ -68,7 +68,7 @@ run-dev:
 run-custom-port:
 	@echo "Running $(BINARY_NAME) on custom port..."
 	@echo "Usage: make run-custom-port PORT=9000"
-	@go run ./cmd/tinybrain serve --http=127.0.0.1:$(or $(PORT),9000)
+	@go run ./cmd/tinybrain serve --port $(or $(PORT),9000)
 
 # Clean build artifacts
 clean:
@@ -169,4 +169,5 @@ help:
 	@echo ""
 	@echo "Environment variables:"
 	@echo "  TINYBRAIN_DB_PATH - Path to SQLite database (default: ~/.tinybrain/memory.db)"
-	@echo "  TINYBRAIN_HTTP - HTTP bind address (default: 127.0.0.1:8090)"
+	@echo "  TINYBRAIN_HOST - HTTP listen host (default: 127.0.0.1)"
+	@echo "  TINYBRAIN_PORT - HTTP listen port (default: 8090)"

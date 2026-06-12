@@ -19,20 +19,20 @@ type Session struct {
 
 // MemoryEntry represents a piece of information stored in the memory system
 type MemoryEntry struct {
-	ID           string                 `json:"id" db:"id"`
-	SessionID    string                 `json:"session_id" db:"session_id"`
-	Title        string                 `json:"title" db:"title"`
-	Content      string                 `json:"content" db:"content"`
-	ContentType  string                 `json:"content_type" db:"content_type"`
-	Category     string                 `json:"category" db:"category"`
-	Priority     int                    `json:"priority" db:"priority"`
-	Confidence   float64                `json:"confidence" db:"confidence"`
-	Tags         []string               `json:"tags" db:"tags"`
-	Source       string                 `json:"source" db:"source"`
-	CreatedAt    time.Time              `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time              `json:"updated_at" db:"updated_at"`
-	AccessedAt   time.Time              `json:"accessed_at" db:"accessed_at"`
-	AccessCount  int                    `json:"access_count" db:"access_count"`
+	ID          string    `json:"id" db:"id"`
+	SessionID   string    `json:"session_id" db:"session_id"`
+	Title       string    `json:"title" db:"title"`
+	Content     string    `json:"content" db:"content"`
+	ContentType string    `json:"content_type" db:"content_type"`
+	Category    string    `json:"category" db:"category"`
+	Priority    int       `json:"priority" db:"priority"`
+	Confidence  float64   `json:"confidence" db:"confidence"`
+	Tags        []string  `json:"tags" db:"tags"`
+	Source      string    `json:"source" db:"source"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
+	AccessedAt  time.Time `json:"accessed_at" db:"accessed_at"`
+	AccessCount int       `json:"access_count" db:"access_count"`
 }
 
 // Relationship represents a connection between two memory entries
@@ -69,30 +69,30 @@ type SearchHistory struct {
 
 // TaskProgress represents progress on a multi-stage task
 type TaskProgress struct {
-	ID                  string     `json:"id" db:"id"`
-	SessionID           string     `json:"session_id" db:"session_id"`
-	TaskName            string     `json:"task_name" db:"task_name"`
-	Stage               string     `json:"stage" db:"stage"`
-	Status              string     `json:"status" db:"status"`
-	ProgressPercentage  int        `json:"progress_percentage" db:"progress_percentage"`
-	Notes               string     `json:"notes" db:"notes"`
-	StartedAt           *time.Time `json:"started_at" db:"started_at"`
-	CompletedAt         *time.Time `json:"completed_at" db:"completed_at"`
-	CreatedAt           time.Time  `json:"created_at" db:"created_at"`
-	UpdatedAt           time.Time  `json:"updated_at" db:"updated_at"`
+	ID                 string     `json:"id" db:"id"`
+	SessionID          string     `json:"session_id" db:"session_id"`
+	TaskName           string     `json:"task_name" db:"task_name"`
+	Stage              string     `json:"stage" db:"stage"`
+	Status             string     `json:"status" db:"status"`
+	ProgressPercentage int        `json:"progress_percentage" db:"progress_percentage"`
+	Notes              string     `json:"notes" db:"notes"`
+	StartedAt          *time.Time `json:"started_at" db:"started_at"`
+	CompletedAt        *time.Time `json:"completed_at" db:"completed_at"`
+	CreatedAt          time.Time  `json:"created_at" db:"created_at"`
+	UpdatedAt          time.Time  `json:"updated_at" db:"updated_at"`
 }
 
 // SearchRequest represents a search query with filters
 type SearchRequest struct {
-	Query        string   `json:"query"`
-	SessionID    string   `json:"session_id,omitempty"`
-	Categories   []string `json:"categories,omitempty"`
-	Tags         []string `json:"tags,omitempty"`
-	MinPriority  int      `json:"min_priority,omitempty"`
-	MinConfidence float64 `json:"min_confidence,omitempty"`
-	Limit        int      `json:"limit,omitempty"`
-	Offset       int      `json:"offset,omitempty"`
-	SearchType   string   `json:"search_type,omitempty"` // semantic, exact, fuzzy, tag, category, relationship
+	Query         string   `json:"query"`
+	SessionID     string   `json:"session_id,omitempty"`
+	Categories    []string `json:"categories,omitempty"`
+	Tags          []string `json:"tags,omitempty"`
+	MinPriority   int      `json:"min_priority,omitempty"`
+	MinConfidence float64  `json:"min_confidence,omitempty"`
+	Limit         int      `json:"limit,omitempty"`
+	Offset        int      `json:"offset,omitempty"`
+	SearchType    string   `json:"search_type,omitempty"` // semantic, exact, fuzzy, tag, category, relationship
 }
 
 // SearchResult represents a search result with relevance score
@@ -104,12 +104,12 @@ type SearchResult struct {
 
 // MemorySummary represents a summary of relevant memories for context
 type MemorySummary struct {
-	SessionID     string         `json:"session_id"`
-	RelevantMemories []MemoryEntry `json:"relevant_memories"`
-	RelatedTasks  []TaskProgress `json:"related_tasks"`
-	KeyFindings   []MemoryEntry  `json:"key_findings"`
-	Summary       string         `json:"summary"`
-	GeneratedAt   time.Time      `json:"generated_at"`
+	SessionID        string         `json:"session_id"`
+	RelevantMemories []MemoryEntry  `json:"relevant_memories"`
+	RelatedTasks     []TaskProgress `json:"related_tasks"`
+	KeyFindings      []MemoryEntry  `json:"key_findings"`
+	Summary          string         `json:"summary"`
+	GeneratedAt      time.Time      `json:"generated_at"`
 }
 
 // CreateMemoryEntryRequest represents a request to create a new memory entry
@@ -149,10 +149,10 @@ type CreateRelationshipRequest struct {
 
 // DatabaseStats represents database statistics
 type DatabaseStats struct {
-	TableCounts        map[string]int                    `json:"table_counts"`
-	DatabaseSizeBytes  int64                             `json:"database_size_bytes"`
-	TopAccessedEntries []map[string]interface{}          `json:"top_accessed_entries"`
-	RecentActivity     []map[string]interface{}          `json:"recent_activity"`
+	TableCounts        map[string]int           `json:"table_counts"`
+	DatabaseSizeBytes  int64                    `json:"database_size_bytes"`
+	TopAccessedEntries []map[string]interface{} `json:"top_accessed_entries"`
+	RecentActivity     []map[string]interface{} `json:"recent_activity"`
 }
 
 // Helper methods for JSON serialization of complex fields
@@ -267,43 +267,43 @@ func (c *ContextSnapshot) UnmarshalJSON(data []byte) error {
 
 // CVEMapping represents a mapping between CWE and CVE entries
 type CVEMapping struct {
-	ID           string    `json:"id" db:"id"`
-	SessionID    string    `json:"session_id" db:"session_id"`
-	CWEID        string    `json:"cwe_id" db:"cwe_id"`
-	CVEList      []string  `json:"cve_list" db:"cve_list"`
-	LastUpdated  time.Time `json:"last_updated" db:"last_updated"`
-	Confidence   float64   `json:"confidence" db:"confidence"`
-	Source       string    `json:"source" db:"source"`
-	CreatedAt    time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt    time.Time `json:"updated_at" db:"updated_at"`
+	ID          string    `json:"id" db:"id"`
+	SessionID   string    `json:"session_id" db:"session_id"`
+	CWEID       string    `json:"cwe_id" db:"cwe_id"`
+	CVEList     []string  `json:"cve_list" db:"cve_list"`
+	LastUpdated time.Time `json:"last_updated" db:"last_updated"`
+	Confidence  float64   `json:"confidence" db:"confidence"`
+	Source      string    `json:"source" db:"source"`
+	CreatedAt   time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // RiskCorrelation represents correlation analysis between vulnerabilities
 type RiskCorrelation struct {
-	ID                string    `json:"id" db:"id"`
-	SessionID         string    `json:"session_id" db:"session_id"`
-	PrimaryVulnID     string    `json:"primary_vuln_id" db:"primary_vuln_id"`
-	SecondaryVulnIDs  []string  `json:"secondary_vuln_ids" db:"secondary_vuln_ids"`
-	RiskMultiplier    float64   `json:"risk_multiplier" db:"risk_multiplier"`
-	AttackChain       []string  `json:"attack_chain" db:"attack_chain"`
-	BusinessImpact    string    `json:"business_impact" db:"business_impact"`
-	Confidence        float64   `json:"confidence" db:"confidence"`
-	CreatedAt         time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at" db:"updated_at"`
+	ID               string    `json:"id" db:"id"`
+	SessionID        string    `json:"session_id" db:"session_id"`
+	PrimaryVulnID    string    `json:"primary_vuln_id" db:"primary_vuln_id"`
+	SecondaryVulnIDs []string  `json:"secondary_vuln_ids" db:"secondary_vuln_ids"`
+	RiskMultiplier   float64   `json:"risk_multiplier" db:"risk_multiplier"`
+	AttackChain      []string  `json:"attack_chain" db:"attack_chain"`
+	BusinessImpact   string    `json:"business_impact" db:"business_impact"`
+	Confidence       float64   `json:"confidence" db:"confidence"`
+	CreatedAt        time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // ComplianceMapping represents mapping to security compliance standards
 type ComplianceMapping struct {
-	ID                string    `json:"id" db:"id"`
-	SessionID         string    `json:"session_id" db:"session_id"`
-	Standard          string    `json:"standard" db:"standard"`
-	Requirement       string    `json:"requirement" db:"requirement"`
-	VulnerabilityIDs  []string  `json:"vulnerability_ids" db:"vulnerability_ids"`
-	ComplianceScore   float64   `json:"compliance_score" db:"compliance_score"`
-	GapAnalysis       []string  `json:"gap_analysis" db:"gap_analysis"`
-	Recommendations   []string  `json:"recommendations" db:"recommendations"`
-	CreatedAt         time.Time `json:"created_at" db:"created_at"`
-	UpdatedAt         time.Time `json:"updated_at" db:"updated_at"`
+	ID               string    `json:"id" db:"id"`
+	SessionID        string    `json:"session_id" db:"session_id"`
+	Standard         string    `json:"standard" db:"standard"`
+	Requirement      string    `json:"requirement" db:"requirement"`
+	VulnerabilityIDs []string  `json:"vulnerability_ids" db:"vulnerability_ids"`
+	ComplianceScore  float64   `json:"compliance_score" db:"compliance_score"`
+	GapAnalysis      []string  `json:"gap_analysis" db:"gap_analysis"`
+	Recommendations  []string  `json:"recommendations" db:"recommendations"`
+	CreatedAt        time.Time `json:"created_at" db:"created_at"`
+	UpdatedAt        time.Time `json:"updated_at" db:"updated_at"`
 }
 
 // Request/Response types for new features

@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"testing"
 
+	"github.com/charmbracelet/log"
 	"github.com/rainmana/tinybrain/internal/database"
 	"github.com/rainmana/tinybrain/internal/models"
-	"github.com/charmbracelet/log"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -175,11 +175,11 @@ func TestSearchMemoryEntries(t *testing.T) {
 
 	// Test category filter
 	searchReq = &models.SearchRequest{
-		Query:       "vulnerability",
-		SessionID:   session.ID,
-		Categories:  []string{"vulnerability"},
-		SearchType:  "exact",
-		Limit:       10,
+		Query:      "vulnerability",
+		SessionID:  session.ID,
+		Categories: []string{"vulnerability"},
+		SearchType: "exact",
+		Limit:      10,
 	}
 
 	results, err = repo.SearchMemoryEntries(ctx, searchReq)
@@ -188,11 +188,11 @@ func TestSearchMemoryEntries(t *testing.T) {
 
 	// Test priority filter
 	searchReq = &models.SearchRequest{
-		Query:        "authentication",
-		SessionID:    session.ID,
-		MinPriority:  7,
-		SearchType:   "exact",
-		Limit:        10,
+		Query:       "authentication",
+		SessionID:   session.ID,
+		MinPriority: 7,
+		SearchType:  "exact",
+		Limit:       10,
 	}
 
 	results, err = repo.SearchMemoryEntries(ctx, searchReq)

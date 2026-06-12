@@ -28,19 +28,19 @@ func TestCreateContextSnapshot(t *testing.T) {
 	// Create some memory entries for the summary
 	entries := []*models.CreateMemoryEntryRequest{
 		{
-			SessionID: session.ID,
-			Title:     "High Priority Finding",
-			Content:   "This is a critical security issue",
-			Category:  "vulnerability",
-			Priority:  9,
+			SessionID:  session.ID,
+			Title:      "High Priority Finding",
+			Content:    "This is a critical security issue",
+			Category:   "vulnerability",
+			Priority:   9,
 			Confidence: 0.9,
 		},
 		{
-			SessionID: session.ID,
-			Title:     "Medium Priority Finding",
-			Content:   "This is a moderate security issue",
-			Category:  "finding",
-			Priority:  5,
+			SessionID:  session.ID,
+			Title:      "Medium Priority Finding",
+			Content:    "This is a moderate security issue",
+			Category:   "finding",
+			Priority:   5,
 			Confidence: 0.7,
 		},
 	}
@@ -126,9 +126,9 @@ func TestListContextSnapshots(t *testing.T) {
 		contextData := map[string]interface{}{
 			"snapshot_number": i,
 		}
-		_, err := repo.CreateContextSnapshot(ctx, session.ID, 
-			"Snapshot "+string(rune('A'+i)), 
-			"Description "+string(rune('A'+i)), 
+		_, err := repo.CreateContextSnapshot(ctx, session.ID,
+			"Snapshot "+string(rune('A'+i)),
+			"Description "+string(rune('A'+i)),
 			contextData)
 		require.NoError(t, err)
 	}
@@ -143,4 +143,3 @@ func TestListContextSnapshots(t *testing.T) {
 	assert.Equal(t, "Snapshot B", snapshots[1].Name)
 	assert.Equal(t, "Snapshot A", snapshots[2].Name)
 }
-

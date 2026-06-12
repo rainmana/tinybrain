@@ -66,15 +66,14 @@ TinyBrain is a comprehensive memory storage system designed specifically for sec
 - **Context Summaries**: Provides relevant memory summaries for current tasks
 
 ### High Performance & Reliability
-- **PocketBase Backend**: Single binary with embedded SQLite, REST API, and real-time capabilities (v1.2.1+)
-- **Admin Dashboard**: Web-based interface for data management and visualization at http://127.0.0.1:8090/_/
-- **MCP Endpoint**: Custom MCP protocol endpoint at http://127.0.0.1:8090/mcp
-- **Real-time Updates**: Server-sent events for live memory updates
+- **Embedded SQLite Backend**: Single binary with a pure-Go SQLite engine (no cgo) and FTS5 full-text search
+- **Dashboard**: Web-based status dashboard at http://127.0.0.1:8090/_/ (in `serve` mode)
+- **REST API**: Full REST API at http://127.0.0.1:8090/api/ for external integrations
+- **MCP Protocol**: JSON-RPC 2.0 over stdio for AI assistant integration
 - **Optimized Queries**: Indexed searches and efficient relationship traversal
 - **Transaction Safety**: ACID compliance for data integrity
 - **Concurrent Access**: Thread-safe operations for multiple LLM interactions
 - **Zero Configuration**: Works out of the box with minimal setup
-- **Mock Implementation**: Current version (v1.2.1) provides mock responses; real database operations coming in future releases
 
 ### AI-Enhanced Search & Intelligence
 - **Semantic Search**: AI-powered memory search using embeddings for conceptual similarity
@@ -94,12 +93,12 @@ TinyBrain is a comprehensive memory storage system designed specifically for sec
 - **Comprehensive Logging**: Detailed logging with structured output
 - **Extensive Testing**: Full test coverage for all MCP tool handlers
 - **Docker Support**: Containerized deployment ready
-- **40 MCP Tools**: Complete API for all memory management operations
-- **PocketBase Integration**: Single binary with admin dashboard and REST API
+- **50+ MCP Tools**: Complete API for all memory management operations
+- **Single Binary**: MCP server, REST API, and dashboard in one executable
 
-## 🛠️ Complete MCP Tool Set (40 Tools)
+## 🛠️ Complete MCP Tool Set (50+ Tools)
 
-TinyBrain provides a comprehensive set of 40 MCP tools for complete LLM memory management:
+TinyBrain provides a comprehensive set of more than 50 MCP tools for complete LLM memory management:
 
 ### Core Memory Operations (8 tools)
 - `store_memory` - Store new memory entries
@@ -249,42 +248,38 @@ docker run -p 8090:8090 rainmana/tinybrain
 ### Basic Usage
 
 ```bash
-# Start the server (uses ./pb_data by default for PocketBase)
+# Start the server (data stored in ~/.tinybrain by default)
 tinybrain serve
 
 # Or specify a custom data directory
 tinybrain serve --dir /path/to/your/data
 
-# Customize the port (default is 127.0.0.1:8090)
-tinybrain serve --http=127.0.0.1:9000
+# Customize the HTTP host/port (default is 127.0.0.1:8090)
+tinybrain serve --port 9000
+tinybrain serve --host 0.0.0.0 --port 8090
 
-# Or use environment variable
-TINYBRAIN_HTTP=127.0.0.1:9000 tinybrain serve
+# Or use environment variables
+TINYBRAIN_HOST=0.0.0.0 TINYBRAIN_PORT=9000 tinybrain serve
 
-# Combine options
-tinybrain serve --dir ~/.tinybrain --http=0.0.0.0:8090
-
-# Access admin dashboard
+# Access the dashboard
 open http://127.0.0.1:8090/_/
 
-# The MCP endpoint is available at:
-# http://127.0.0.1:8090/mcp
+# The REST API is available at:
+# http://127.0.0.1:8090/api/
 ```
 
-**Important**: With PocketBase, the data directory structure is different from the previous SQLite-only version. PocketBase stores its data in a `pb_data` subdirectory within the specified directory (or `./pb_data` by default).
+In `serve` mode TinyBrain speaks the MCP protocol over stdio *and* serves the
+REST API/dashboard over HTTP. Running plain `tinybrain` (no subcommand) starts
+a stdio-only MCP server, which is what most MCP client configs use.
 
-### PocketBase Integration Features
-
-TinyBrain uses PocketBase as its backend (v1.2.1+), providing:
+### Server Features
 
 - **Single Binary**: Everything in one executable with zero configuration
-- **Admin Dashboard**: Web interface at http://127.0.0.1:8090/_/ for data management and visualization
-- **REST API**: Full REST API at http://127.0.0.1:8090/api/ for external integrations
-- **Real-time Updates**: Server-sent events for live memory updates
-- **Data Persistence**: All data persists across server restarts in `pb_data` directory
-- **MCP Endpoint**: Custom MCP protocol endpoint at http://127.0.0.1:8090/mcp
-- **Comprehensive Testing**: Full test coverage with all MCP tools verified
-- **Mock Implementation**: Current version provides mock responses for all MCP tools, with real database operations to be implemented in future releases
+- **Dashboard**: Web interface at http://127.0.0.1:8090/_/ for stats and links
+- **REST API**: Sessions and memory endpoints at http://127.0.0.1:8090/api/
+- **Optional Auth**: Set `TINYBRAIN_API_TOKEN` to require a bearer token on the REST API
+- **Data Persistence**: SQLite database at `<dir>/memory.db` (default `~/.tinybrain/memory.db`)
+- **MCP over stdio**: JSON-RPC 2.0; works with Claude Desktop, Cursor, Cline, and any MCP client
 
 ### Intelligence Gathering Example
 
@@ -367,14 +362,14 @@ Add to your MCP client configuration (e.g., Claude Desktop):
       "command": "tinybrain",
       "args": ["serve"],
       "env": {
-        "POCKETBASE_DATA_DIR": "~/.tinybrain"
+        "TINYBRAIN_DB_PATH": "~/.tinybrain/memory.db"
       }
     }
   }
 }
 ```
 
-**Note**: The binary name is `tinybrain` (from `cmd/tinybrain`). PocketBase will create a `pb_data` subdirectory in the specified data directory.
+**Note**: The binary name is `tinybrain` (from `cmd/tinybrain`); `go install github.com/rainmana/tinybrain/cmd/server@latest` installs the same program as `server`. The SQLite database is created at `~/.tinybrain/memory.db` by default.
 
 ## 📚 Documentation
 
@@ -499,20 +494,17 @@ The documentation includes:
 
 TinyBrain is built with:
 - **Go 1.24+** - High-performance backend
-- **PocketBase v0.30.4** - Single binary with embedded SQLite, REST API, and real-time capabilities
-- **MCP Protocol** - LLM integration standard with 40+ tools
+- **modernc.org/sqlite** - Pure-Go embedded SQLite with FTS5 full-text search (no cgo)
+- **MCP Protocol** - LLM integration standard with 50+ tools over stdio (JSON-RPC 2.0)
 - **MITRE ATT&CK** - Security framework integration
 - **Jekyll** - Documentation site with Minimal theme
 
-**Current Version**: v1.2.1 (PocketBase backend with mock MCP tool responses)
+### Single-Binary Benefits
 
-### PocketBase Integration Benefits
-
-- **Single Binary Deployment**: No external dependencies, works anywhere Go runs
-- **Embedded Database**: SQLite database embedded in the binary
-- **Web Admin Interface**: Built-in dashboard for data management and visualization
+- **No External Dependencies**: Works anywhere Go runs; CGO-free cross-compilation
+- **Embedded Database**: SQLite database file managed by the binary
+- **Dashboard**: Built-in status dashboard at `/_/`
 - **REST API**: Full REST API for external integrations and automation
-- **Real-time Capabilities**: Server-sent events for live updates
 - **Zero Configuration**: Works out of the box with sensible defaults
 - **Data Persistence**: All data automatically persisted across restarts
 
@@ -574,28 +566,26 @@ docker run --rm -it \
 
 ### Environment Variables
 
-- `POCKETBASE_DATA_DIR`: Path to PocketBase data directory (default: `./pb_data`)
-- `TINYBRAIN_HTTP`: HTTP server bind address (default: `127.0.0.1:8090`, e.g., `127.0.0.1:9000` or `0.0.0.0:8090`)
-- `TINYBRAIN_LOG_LEVEL`: Log level (debug, info, warn, error)
+- `TINYBRAIN_DB_PATH`: Path to the SQLite database (default: `~/.tinybrain/memory.db`)
+- `TINYBRAIN_HOST`: HTTP listen host in serve mode (default: `127.0.0.1`)
+- `TINYBRAIN_PORT`: HTTP listen port in serve mode (default: `8090`)
+- `TINYBRAIN_HTTP`: Set to `false` to disable the HTTP API in serve mode
+- `TINYBRAIN_API_TOKEN`: If set, the REST API requires this bearer token
 
-### PocketBase Configuration
+### Server Endpoints (serve mode)
 
-PocketBase provides:
-- **Embedded SQLite**: Database stored in `pb_data/data.db` within the data directory
-- **Admin Dashboard**: Accessible at http://127.0.0.1:8090/_/ after first run
-- **REST API**: Full REST API at http://127.0.0.1:8090/api/
-- **Collections**: Automatically managed by PocketBase
-- **Zero Configuration**: Works out of the box with sensible defaults
+- **Dashboard**: http://127.0.0.1:8090/_/
+- **REST API index**: http://127.0.0.1:8090/api/
+- **Health check**: http://127.0.0.1:8090/health
+- **MCP protocol**: stdio (JSON-RPC 2.0)
 
 ### Data Directory Structure
 
 ```
 ~/.tinybrain/
-├── pb_data/
-│   ├── data.db          # PocketBase SQLite database
-│   ├── logs.db          # PocketBase logs
-│   └── storage/         # File storage (if used)
-└── ...
+├── memory.db          # SQLite database
+├── memory.db-wal      # Write-ahead log
+└── memory.db-shm      # Shared memory file
 ```
 
 ## 🛡️ Security Datasets & Templates

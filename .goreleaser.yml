@@ -6,7 +6,7 @@ version: 2
 before:
   hooks:
     # Run tests before building
-    - go test -v ./cmd/tinybrain
+    - go test ./...
 
 builds:
   - id: tinybrain
@@ -27,8 +27,7 @@ builds:
         goarch: arm64
     ldflags:
       - -s -w
-      - -X main.Version={{.Version}}
-      - -X main.BuildTime={{.Date}}
+      - -X github.com/rainmana/tinybrain/internal/app.Version={{.Version}}
 
 archives:
   - id: tinybrain
@@ -112,7 +111,7 @@ release:
     ./tinybrain serve
     
     # Or with custom port
-    ./tinybrain serve --http=127.0.0.1:9000
+    ./tinybrain serve --port 9000
     ```
     
     For full documentation, visit the [README](https://github.com/rainmana/tinybrain).

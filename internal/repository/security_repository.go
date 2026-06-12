@@ -379,70 +379,66 @@ func (r *SecurityRepository) QueryATTACK(ctx context.Context, req models.ATTACKS
 func (r *SecurityRepository) GetSecurityDataSummary(ctx context.Context) (map[string]models.SecurityDataSummary, error) {
 	summaries := make(map[string]models.SecurityDataSummary)
 
-	// NVD Summary - check if table exists first
-	var nvdCount int
-	var nvdLastUpdate sql.NullTime
-	err := r.db.GetDB().QueryRowContext(ctx, "SELECT COUNT(*), MAX(updated_at) FROM nvd_cves").Scan(&nvdCount, &nvdLastUpdate)
-	if err != nil {
-		// Table doesn't exist yet, create empty summary
-		summaries["nvd"] = models.SecurityDataSummary{
-			DataSource:   "nvd",
-			TotalRecords: 0,
-			LastUpdate:   nil,
-			Summary:      "NVD database not yet populated",
-		}
-	} else {
-		summaries["nvd"] = models.SecurityDataSummary{
-			DataSource:   "nvd",
-			TotalRecords: nvdCount,
-			LastUpdate:   &nvdLastUpdate.Time,
-			Summary:      fmt.Sprintf("NVD database contains %d CVE entries", nvdCount),
-		}
+	sources := []struct {
+		key          string
+		table        string
+		summaryFmt   string
+		emptySummary string
+	}{
+		{"nvd", "nvd_cves", "NVD database contains %d CVE entries", "NVD database not yet populated"},
+		{"attack", "attack_techniques", "MITRE ATT&CK database contains %d techniques", "MITRE ATT&CK database not yet populated"},
+		{"owasp", "owasp_procedures", "OWASP Testing Guide contains %d procedures", "OWASP Testing Guide not yet populated"},
 	}
 
-	// ATT&CK Summary - check if table exists first
-	var attackCount int
-	var attackLastUpdate sql.NullTime
-	err = r.db.GetDB().QueryRowContext(ctx, "SELECT COUNT(*), MAX(updated_at) FROM attack_techniques").Scan(&attackCount, &attackLastUpdate)
-	if err != nil {
-		// Table doesn't exist yet, create empty summary
-		summaries["attack"] = models.SecurityDataSummary{
-			DataSource:   "attack",
-			TotalRecords: 0,
-			LastUpdate:   nil,
-			Summary:      "MITRE ATT&CK database not yet populated",
+	for _, src := range sources {
+		var count int
+		// MAX() strips column type info in SQLite, so scan as string and parse
+		var lastUpdateRaw sql.NullString
+		query := fmt.Sprintf("SELECT COUNT(*), MAX(updated_at) FROM %s", src.table)
+		err := r.db.GetDB().QueryRowContext(ctx, query).Scan(&count, &lastUpdateRaw)
+		if err != nil || count == 0 {
+			summaries[src.key] = models.SecurityDataSummary{
+				DataSource:   src.key,
+				TotalRecords: 0,
+				LastUpdate:   nil,
+				Summary:      src.emptySummary,
+			}
+			continue
 		}
-	} else {
-		summaries["attack"] = models.SecurityDataSummary{
-			DataSource:   "attack",
-			TotalRecords: attackCount,
-			LastUpdate:   &attackLastUpdate.Time,
-			Summary:      fmt.Sprintf("MITRE ATT&CK database contains %d techniques", attackCount),
-		}
-	}
 
-	// OWASP Summary - check if table exists first
-	var owaspCount int
-	var owaspLastUpdate sql.NullTime
-	err = r.db.GetDB().QueryRowContext(ctx, "SELECT COUNT(*), MAX(updated_at) FROM owasp_procedures").Scan(&owaspCount, &owaspLastUpdate)
-	if err != nil {
-		// Table doesn't exist yet, create empty summary
-		summaries["owasp"] = models.SecurityDataSummary{
-			DataSource:   "owasp",
-			TotalRecords: 0,
-			LastUpdate:   nil,
-			Summary:      "OWASP Testing Guide not yet populated",
+		var lastUpdate *time.Time
+		if lastUpdateRaw.Valid {
+			if t := parseSQLiteTime(lastUpdateRaw.String); t != nil {
+				lastUpdate = t
+			}
 		}
-	} else {
-		summaries["owasp"] = models.SecurityDataSummary{
-			DataSource:   "owasp",
-			TotalRecords: owaspCount,
-			LastUpdate:   &owaspLastUpdate.Time,
-			Summary:      fmt.Sprintf("OWASP Testing Guide contains %d procedures", owaspCount),
+
+		summaries[src.key] = models.SecurityDataSummary{
+			DataSource:   src.key,
+			TotalRecords: count,
+			LastUpdate:   lastUpdate,
+			Summary:      fmt.Sprintf(src.summaryFmt, count),
 		}
 	}
 
 	return summaries, nil
+}
+
+// parseSQLiteTime parses the timestamp formats SQLite commonly stores
+func parseSQLiteTime(s string) *time.Time {
+	formats := []string{
+		time.RFC3339Nano,
+		time.RFC3339,
+		"2006-01-02 15:04:05.999999999-07:00",
+		"2006-01-02 15:04:05",
+		"2006-01-02T15:04:05Z",
+	}
+	for _, f := range formats {
+		if t, err := time.Parse(f, s); err == nil {
+			return &t
+		}
+	}
+	return nil
 }
 
 // UpdateSecurityDataStatus updates the status of security data updates

@@ -42,6 +42,8 @@ func (r *MemoryRepository) CreateSession(ctx context.Context, session *models.Se
 	}
 
 	now := time.Now()
+	session.CreatedAt = now
+	session.UpdatedAt = now
 	_, err = r.db.ExecContext(ctx, query,
 		session.ID,
 		session.Name,
@@ -50,7 +52,7 @@ func (r *MemoryRepository) CreateSession(ctx context.Context, session *models.Se
 		session.Status,
 		now,
 		now,
-		metadataJSON,
+		string(metadataJSON),
 	)
 
 	if err != nil {
@@ -209,7 +211,7 @@ func (r *MemoryRepository) CreateMemoryEntry(ctx context.Context, req *models.Cr
 		entry.Category,
 		entry.Priority,
 		entry.Confidence,
-		tagsJSON,
+		string(tagsJSON),
 		entry.Source,
 		entry.CreatedAt,
 		entry.UpdatedAt,
@@ -327,13 +329,16 @@ func (r *MemoryRepository) SearchMemoryEntries(ctx context.Context, req *models.
 		var fts5Exists int
 		err := r.db.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name='memory_entries_fts'").Scan(&fts5Exists)
 		if err == nil && fts5Exists > 0 {
+			// The FTS index stores integer rowids, so join on me.rowid (not
+			// the TEXT UUID in me.id). The query is quoted as an FTS5 string
+			// so user input cannot break the MATCH syntax.
 			query.WriteString(`
-				AND me.id IN (
-					SELECT rowid FROM memory_entries_fts 
+				AND me.rowid IN (
+					SELECT rowid FROM memory_entries_fts
 					WHERE memory_entries_fts MATCH ?
 				)
 			`)
-			args = append(args, req.Query)
+			args = append(args, `"`+strings.ReplaceAll(req.Query, `"`, `""`)+`"`)
 		} else {
 			// Fallback to LIKE search
 			query.WriteString(" AND (me.title LIKE ? OR me.content LIKE ? OR me.tags LIKE ?)")
@@ -2520,7 +2525,7 @@ func (r *MemoryRepository) MapToCVE(ctx context.Context, sessionID, cweID string
 		cveMapping.ID,
 		cveMapping.SessionID,
 		cveMapping.CWEID,
-		cveListJSON,
+		string(cveListJSON),
 		cveMapping.LastUpdated,
 		cveMapping.Confidence,
 		cveMapping.Source,
@@ -2788,9 +2793,9 @@ func (r *MemoryRepository) storeRiskCorrelation(ctx context.Context, correlation
 		correlation.ID,
 		correlation.SessionID,
 		correlation.PrimaryVulnID,
-		secondaryVulnIDsJSON,
+		string(secondaryVulnIDsJSON),
 		correlation.RiskMultiplier,
-		attackChainJSON,
+		string(attackChainJSON),
 		correlation.BusinessImpact,
 		correlation.Confidence,
 		correlation.CreatedAt,
@@ -3040,10 +3045,10 @@ func (r *MemoryRepository) storeComplianceMapping(ctx context.Context, mapping *
 		mapping.SessionID,
 		mapping.Standard,
 		mapping.Requirement,
-		vulnIDsJSON,
+		string(vulnIDsJSON),
 		mapping.ComplianceScore,
-		gapAnalysisJSON,
-		recommendationsJSON,
+		string(gapAnalysisJSON),
+		string(recommendationsJSON),
 		mapping.CreatedAt,
 		mapping.UpdatedAt,
 	)

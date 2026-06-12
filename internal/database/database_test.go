@@ -56,10 +56,10 @@ func TestDatabaseHealthCheck(t *testing.T) {
 	// Test with context timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 1*time.Second)
 	defer cancel()
-	
+
 	// This should work within the timeout
 	assert.NoError(t, db.HealthCheck())
-	
+
 	// Use the context to avoid unused variable warning
 	_ = ctx
 }
@@ -153,17 +153,17 @@ func TestDatabaseConcurrency(t *testing.T) {
 
 	// Test concurrent reads
 	done := make(chan bool, 10)
-	
+
 	for i := 0; i < 10; i++ {
 		go func(id int) {
 			defer func() { done <- true }()
-			
+
 			// Perform multiple operations
 			for j := 0; j < 5; j++ {
 				stats, err := db.GetStats()
 				assert.NoError(t, err)
 				assert.NotNil(t, stats)
-				
+
 				err = db.HealthCheck()
 				assert.NoError(t, err)
 			}
@@ -188,7 +188,7 @@ func TestDatabaseSchema(t *testing.T) {
 	// Test that all tables exist
 	tables := []string{
 		"sessions",
-		"memory_entries", 
+		"memory_entries",
 		"relationships",
 		"context_snapshots",
 		"search_history",
@@ -227,7 +227,7 @@ func TestDatabaseSchema(t *testing.T) {
 	if fts5Count > 0 {
 		triggers := []string{
 			"memory_entries_fts_insert",
-			"memory_entries_fts_delete", 
+			"memory_entries_fts_delete",
 			"memory_entries_fts_update",
 		}
 
