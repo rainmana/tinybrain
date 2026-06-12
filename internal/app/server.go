@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
+	"github.com/google/uuid"
 	"github.com/rainmana/tinybrain/internal/database"
 	"github.com/rainmana/tinybrain/internal/mcp"
 	"github.com/rainmana/tinybrain/internal/models"
@@ -1197,7 +1198,7 @@ func (t *TinyBrainServer) handleCreateSession(ctx context.Context, params map[st
 	}
 
 	session := &models.Session{
-		ID:          fmt.Sprintf("session_%d", time.Now().UnixNano()),
+		ID:          fmt.Sprintf("session_%s", uuid.New().String()),
 		Name:        name,
 		Description: description,
 		TaskType:    taskType,

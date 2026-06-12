@@ -575,7 +575,7 @@ func (r *MemoryRepository) calculateRelevance(entry *models.MemoryEntry, query s
 // CreateContextSnapshot creates a snapshot of the current context for a session
 func (r *MemoryRepository) CreateContextSnapshot(ctx context.Context, sessionID, name, description string, contextData map[string]interface{}) (*models.ContextSnapshot, error) {
 	snapshot := &models.ContextSnapshot{
-		ID:          fmt.Sprintf("snapshot_%d", time.Now().UnixNano()),
+		ID:          fmt.Sprintf("snapshot_%s", uuid.New().String()),
 		SessionID:   sessionID,
 		Name:        name,
 		Description: description,
@@ -896,7 +896,7 @@ func (r *MemoryRepository) ImportSessionData(ctx context.Context, importData map
 
 	// Create new session with imported data
 	session := &models.Session{
-		ID:          fmt.Sprintf("imported_%d", time.Now().UnixNano()),
+		ID:          fmt.Sprintf("imported_%s", uuid.New().String()),
 		Name:        sessionData["name"].(string),
 		Description: sessionData["description"].(string),
 		TaskType:    sessionData["task_type"].(string),
@@ -2261,7 +2261,7 @@ func (r *MemoryRepository) generateMemorySummary(ctx context.Context, sessionID 
 // CreateTaskProgress creates a new task progress entry
 func (r *MemoryRepository) CreateTaskProgress(ctx context.Context, sessionID, taskName, stage, status, notes string, progressPercentage int) (*models.TaskProgress, error) {
 	progress := &models.TaskProgress{
-		ID:                 fmt.Sprintf("task_%d", time.Now().UnixNano()),
+		ID:                 fmt.Sprintf("task_%s", uuid.New().String()),
 		SessionID:          sessionID,
 		TaskName:           taskName,
 		Stage:              stage,

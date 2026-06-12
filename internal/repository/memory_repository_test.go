@@ -23,6 +23,10 @@ func setupTestDB(t *testing.T) (*database.Database, *MemoryRepository) {
 
 	db, err := database.NewDatabase(dbPath, logger)
 	require.NoError(t, err)
+	// Close via t.Cleanup so Windows can delete the TempDir (open handles
+	// block file removal there); sql.DB.Close is idempotent, so tests that
+	// also defer db.Close() are fine
+	t.Cleanup(func() { db.Close() })
 
 	repo := NewMemoryRepository(db.GetDB(), logger)
 	return db, repo
