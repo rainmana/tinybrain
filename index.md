@@ -21,7 +21,7 @@ TinyBrain is a Model Context Protocol (MCP) server designed for security profess
 
 ```bash
 # Install from source (recommended)
-go install github.com/rainmana/tinybrain/cmd/server@latest
+go install github.com/rainmana/tinybrain/v3/cmd/tinybrain@latest
 
 # Start the server
 tinybrain serve --dir ~/.tinybrain
@@ -67,7 +67,7 @@ docker run -p 8090:8090 tinybrain
 
 ### From Source
 ```bash
-go install github.com/rainmana/tinybrain/cmd/server@latest
+go install github.com/rainmana/tinybrain/v3/cmd/tinybrain@latest
 ```
 
 ### Docker

@@ -8,6 +8,10 @@ permalink: /ai-integration/
 
 TinyBrain provides comprehensive integration capabilities for AI assistants, development environments, and security tools.
 
+> **Using Claude Code?** The fastest path is the [Claude Code Plugin](/tinybrain/claude-plugin/),
+> which registers the MCP server *and* installs skills that teach Claude how to use TinyBrain
+> effectively — in a single install.
+
 ## AI Assistant Integration
 
 ### Model Context Protocol (MCP)

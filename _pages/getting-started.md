@@ -10,8 +10,14 @@ permalink: /getting-started/
 
 ### From Source (Recommended)
 ```bash
-go install github.com/rainmana/tinybrain/cmd/server@latest
+go install github.com/rainmana/tinybrain/v3/cmd/tinybrain@latest
 ```
+
+Note the `/v3` in the module path — it's required for v3.x releases.
+
+### Claude Code Plugin
+If you use Claude Code, the [Claude Code Plugin](/tinybrain/claude-plugin/) registers the
+MCP server **and** installs skills that teach Claude how to use TinyBrain — in one install.
 
 ### Docker
 ```bash
@@ -22,16 +28,18 @@ docker run -p 8090:8090 rainmana/tinybrain
 ### Pre-built Binaries
 Download from [Releases](https://github.com/rainmana/tinybrain/releases)
 
-## PocketBase Integration {#pocketbase-integration}
+## Architecture {#architecture}
 
-TinyBrain now uses PocketBase as its backend, providing:
+TinyBrain is a single, self-contained Go binary:
 
-- **Single Binary**: Everything in one executable with zero configuration
-- **Admin Dashboard**: Web interface at http://127.0.0.1:8090/_/ for data management
-- **REST API**: Full REST API at http://127.0.0.1:8090/api/ for external integrations
-- **Real-time Updates**: Server-sent events for live memory updates
-- **Data Persistence**: All data persists across server restarts
-- **Comprehensive Testing**: 17/17 tests passing with full functionality verification
+- **Single Binary**: MCP server, REST API, and dashboard in one executable — zero configuration
+- **Embedded SQLite**: A pure-Go SQLite engine (no cgo, no external database) with FTS5
+  full-text search; cross-compiles cleanly to every platform
+- **MCP over stdio**: JSON-RPC 2.0 for AI assistant integration (run `tinybrain` with no args)
+- **REST API + Dashboard** (in `serve` mode): full REST API at `http://127.0.0.1:8090/api/`
+  and a status dashboard at `http://127.0.0.1:8090/_/`
+- **Data Persistence**: everything persists in a SQLite database at `~/.tinybrain/memory.db`
+  by default (override with `TINYBRAIN_DB_PATH`)
 
 ## Basic Usage {#basic-usage}
 

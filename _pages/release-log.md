@@ -106,7 +106,7 @@ description: TinyBrain release history and changelog
 
 ```bash
 # Install latest version
-go install github.com/rainmana/tinybrain/cmd/server@latest
+go install github.com/rainmana/tinybrain/v3/cmd/tinybrain@latest
 
 # Start server
 tinybrain serve --dir ~/.tinybrain
