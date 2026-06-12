@@ -6,7 +6,8 @@
 *.dylib
 bin/
 dist/
-server
+/server
+/server.exe
 /tinybrain
 /tinybrain.exe
 
